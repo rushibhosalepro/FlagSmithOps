@@ -1,0 +1,8 @@
+{"args":["--help"],"ms":56,"bytes":2114,"exit":0}
+{"args":["feature","list","--json","--no-input"],"ms":773,"bytes":1215,"exit":0}
+{"args":["environment","list","--json","--no-input"],"ms":637,"bytes":1268,"exit":0}
+{"args":["feature","--help"],"ms":39,"bytes":1475,"exit":0}
+{"args":["flag","--help"],"ms":36,"bytes":1664,"exit":0}
+{"args":["flag","list","-e","<development-env-key>","--json","--no-input"],"ms":1081,"bytes":1435,"exit":0}
+{"args":["flag","list","-e","<production-env-key>","--json","--no-input"],"ms":1336,"bytes":1435,"exit":0}
+{"args":["feature","get","old_banner","--json","--no-input"],"ms":780,"bytes":188,"exit":0}

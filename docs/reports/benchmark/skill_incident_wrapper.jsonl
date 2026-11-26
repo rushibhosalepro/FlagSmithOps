@@ -1,0 +1,7 @@
+{"args": ["--version"], "exit": 0, "bytes": 25, "ms": 61}
+{"args": ["auth", "status"], "exit": 0, "bytes": 223, "ms": 871}
+{"args": ["config"], "exit": 0, "bytes": 419, "ms": 39}
+{"args": ["feature", "list", "--jq", ".[].name"], "exit": 0, "bytes": 71, "ms": 707}
+{"args": ["environment", "list", "--jq", "[.[].name]"], "exit": 0, "bytes": 29, "ms": 772}
+{"args": ["flag", "get", "new_checkout", "--environment", "Production"], "exit": 0, "bytes": 263, "ms": 973}
+{"args": ["flag", "get", "new_checkout", "--environment", "Development"], "exit": 0, "bytes": 264, "ms": 920}

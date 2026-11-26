@@ -1,0 +1,10 @@
+{"args": ["flag", "get", "old_banner", "--environment", "Production"], "exit": 0, "bytes": 263, "ms": 2022}
+{"args": ["flag", "get", "old_banner", "--environment", "Development"], "exit": 0, "bytes": 263, "ms": 1044}
+{"args": ["flag", "get", "old_banner", "--environment", "Production"], "exit": 0, "bytes": 263, "ms": 959}
+{"args": ["flag", "get", "old_banner", "--environment", "Development"], "exit": 0, "bytes": 263, "ms": 711}
+{"args": ["flag", "get", "old_banner", "--environment", "Production"], "exit": 0, "bytes": 263, "ms": 3143}
+{"args": ["flag", "get", "old_banner", "--environment", "Development"], "exit": 0, "bytes": 263, "ms": 1109}
+{"args": ["feature", "update", "old_banner", "--archive", "--yes"], "exit": 0, "bytes": 167, "ms": 876}
+{"args": ["api", "/api/v1/projects/<project-id>/features/", "--jq", "[.results[]|select(.name==old_banner)|{name,is_archived}]"], "exit": 1, "bytes": 0, "ms": 606}
+{"args": ["api", "/api/v1/projects/<project-id>/features/", "--jq", "[.results[]|select(.name==\"old_banner\")|{name,is_archived}]"], "exit": 0, "bytes": 43, "ms": 814}
+{"args": ["evaluate", "old_banner", "--identity", "cleanup-check", "-e", "Production"], "exit": 0, "bytes": 63, "ms": 274}

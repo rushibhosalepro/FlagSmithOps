@@ -1,0 +1,8 @@
+{"args":["--help"],"ms":46,"bytes":2114,"exit":0}
+{"args":["environment","--help"],"ms":40,"bytes":1659,"exit":0}
+{"args":["environment","list","--json"],"ms":626,"bytes":1268,"exit":0}
+{"args":["feature","list","--json"],"ms":671,"bytes":1215,"exit":0}
+{"args":["flag","--help"],"ms":40,"bytes":1664,"exit":0}
+{"args":["evaluate","--help"],"ms":46,"bytes":2176,"exit":0}
+{"args":["flag","get","new_checkout","-e","<production-env-key>","--json"],"ms":1797,"bytes":274,"exit":0}
+{"args":["evaluate","new_checkout","-e","<production-env-key>","-i","affected-user","--json"],"ms":276,"bytes":93,"exit":0}
