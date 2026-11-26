@@ -57,7 +57,7 @@ def main(argv=None):
     parser.add_argument("--input", required=True)
     parser.add_argument("--out", required=True)
     ns = parser.parse_args(argv)
-    with open(ns.input, encoding="utf-8") as handle:
+    with open(ns.input, encoding="utf-8-sig") as handle:
         text = render(json.load(handle))
     with open(ns.out, "w", encoding="utf-8") as handle:
         handle.write(text)

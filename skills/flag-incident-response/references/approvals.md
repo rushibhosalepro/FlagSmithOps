@@ -9,7 +9,7 @@ Disable `NAME` in `ENV`?
 - Change: enabled -> disabled (environment default only).
 - Other environments are not touched: <list>.
 - Not affected by this change: <overrides, if any>.
-- Restore: <command>
+- Restore: <command, with --yes>
 Go ahead? (yes / no)
 ```
 

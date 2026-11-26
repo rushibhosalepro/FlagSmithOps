@@ -18,5 +18,11 @@ Rules that follow:
 ## Overrides
 `flag get` returns `segment_overrides` and `identity_overrides` as counts. `snapshot.py capture` reads them and sets `has_overrides`. Counts do not say which identities are affected. To check an identity, run `check_effect.py` for it.
 
+## Observed by running writes (disposable test flags)
+- Writes with --no-input need --yes: without it the command exits 2 with "pass --yes to confirm" and changes nothing.
+- Failures exit 1 with a clear message.
+- lag disable returns the new flag state. Disable then lag enable returned state identical to the snapshot (snapshot.py verify).
+- evaluate showed the flag off for the identities checked right after the disable.
+
 ## Still unverified
-Multivariate output shape. Whether `flag disable` and the restore commands return state exactly. Whether `--no-input` makes a command that asks for confirmation fail unless `--yes` is passed. CLI exit codes. How an override shows up in `evaluate` (`reason`).
+Multivariate output shape. Behaviour of disable and restore when overrides exist, and for multivariate flags. How an override shows up in `evaluate` (`reason`). How quickly the SDK API reflects a change (evaluated seconds after the write here).

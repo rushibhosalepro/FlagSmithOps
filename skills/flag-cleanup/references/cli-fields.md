@@ -32,5 +32,12 @@ The `Stale` tag needs a Scale-up or Enterprise plan, so it will not exist on the
 ## Overrides
 `snapshot.py capture` reads `segment_overrides` and `identity_overrides` (counts) and sets `has_overrides`. Use that value. If the counts are missing it is `null`, the verdict needs approval, and the archive stays blocked until overrides are checked or the user accepts the risk.
 
+## Observed by running writes (disposable test flags)
+- Writes with --no-input need --yes: without it the command exits 2 with "pass --yes to confirm" and changes nothing.
+- Failures exit 1 with a clear message (unknown flag, unknown environment, no environment).
+- eature update FLAG --archive sets is_archived true. --unarchive sets it false. Both returned the feature object.
+- An archived flag still evaluates (evaluate returned the same state) and lag get still works. The default eature list hides archived features. --include-archived shows them.
+- Archive then unarchive, and disable then enable, returned state identical to the snapshot (snapshot.py verify).
+
 ## Still unverified
-Permanent-tag field name. `lifecycle_stage` values. Multivariate output shape. Archive and unarchive behaviour, including whether an archived flag still evaluates. Whether `--no-input` makes a command that asks for confirmation fail unless `--yes` is passed. CLI exit codes.
+Permanent-tag field name. `lifecycle_stage` values. Multivariate output shape. How long an archived flag keeps evaluating (it was checked right after archiving). Behaviour with overrides and multivariate flags.

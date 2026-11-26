@@ -31,11 +31,11 @@ Find the flag behind a broken feature, switch it off safely, prove what changed,
 
 **5. Approve.** Use the wording in `references/approvals.md`. Wait for a clear yes.
 
-**6. Apply.** `python scripts/cli.py run -- flag disable NAME --environment ENV`. On any failure, stop and show the error. Do not retry with other options.
+**6. Apply.** `python scripts/cli.py run -- flag disable NAME --environment ENV --yes`. The CLI refuses writes without `--yes` when it cannot prompt, so pass it only now, after the user approved this exact action. On any failure, stop and show the error. Do not retry with other options.
 
 **7. Verify.** Run `python scripts/check_effect.py --flag NAME --env ENV --identity AFFECTED [--identity OVERRIDE_USER]`. `--env` is required, so you never check the wrong environment. Include an identity covered by each override you know of. FLAG OFF means only that those identities see the flag off. PARTIAL means someone still sees the feature: name them. UNVERIFIED means you could not tell. The script always prints `Incident: NOT VERIFIED`. Never tell the user the incident is resolved. Ask them to confirm the symptom is gone, because you cannot see that from the CLI.
 
-**8. Restore (when asked).** Ask for approval. Run the restore commands. Confirm with `python scripts/snapshot.py verify --file .fsops/NAME.snapshot.json`. Report if the state differs. Restore covers the environment default only (enabled state and a simple value). Variants, weights and overrides are not restored. Report any difference `verify` finds.
+**8. Restore (when asked).** Ask for approval. Run the restore commands (they include `--yes`). Confirm with `python scripts/snapshot.py verify --file .fsops/NAME.snapshot.json`. Report if the state differs. Restore covers the environment default only (enabled state and a simple value). Variants, weights and overrides are not restored. Report any difference `verify` finds.
 
 **9. Evidence.** Write the run to `.fsops/run.json` and run `python scripts/evidence.py --input .fsops/run.json --out evidence.md`. Include candidates, the action or the refusal, the verification result, the restore command and anything not verified. Run `python scripts/cli.py meter` and report calls and output size.
 

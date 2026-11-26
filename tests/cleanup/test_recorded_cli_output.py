@@ -36,7 +36,7 @@ class RecordedFlagGetTest(unittest.TestCase):
 
     def test_restore_enables_production_and_skips_the_null_value(self):
         res = snapshot.restore_commands(self.snap, "Production")
-        self.assertEqual(res["commands"], [["flagsmith", "flag", "enable", "new_checkout", "--environment", "Production"]])
+        self.assertEqual(res["commands"], [["flagsmith", "flag", "enable", "new_checkout", "--environment", "Production", "--yes"]])
 
     def test_note_says_overrides_are_counts_only(self):
         self.assertTrue(any("Override counts come from the CLI" in n for n in self.snap["notes"]))

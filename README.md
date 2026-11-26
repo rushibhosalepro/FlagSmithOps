@@ -96,7 +96,7 @@ Evidence reports are written to `evidence.md` (incident) and `.flag-cleanup/` (c
 - Change requests and scheduled changes (paid Flagsmith plans) are not supported.
 
 ## Status
-The scripts pass unit tests. The CLI's read-only output (flag state, override counts, evaluation, the Management API) was checked against a live Flagsmith Cloud project with CLI v2.0.0, and the results are in `docs/spike-results.md`. Write operations (disable and restore, archive and unarchive) have not been run yet, so how they behave is still unverified.
+The scripts pass unit tests. The CLI's read-only output (flag state, override counts, evaluation, the Management API) was checked against a live Flagsmith Cloud project with CLI v2.0.0, and the results are in `docs/spike-results.md`. A write drill on disposable flags also passed: disable and restore, and archive and unarchive, each matched their snapshot. Still unverified: flags with overrides or variants, the full cleanup run through a merged PR, and runs with a coding agent.
 
 ## Develop
 ```

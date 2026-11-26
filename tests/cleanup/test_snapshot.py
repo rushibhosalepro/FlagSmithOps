@@ -112,6 +112,13 @@ class RestoreCommandsTest(unittest.TestCase):
         for env, verb in verbs.items():
             self.assertIn(env, self.cmds(snap, env)["commands"][0])
 
+    def test_every_generated_write_carries_yes_and_the_notes_say_to_run_only_after_approval(self):
+        res = self.cmds(snap_of({"production": "flag_get_enabled.json"}), "production")
+        self.assertTrue(res["commands"])
+        for command in res["commands"]:
+            self.assertEqual(command[-1], "--yes")
+        self.assertTrue(any("only after the user approves" in n for n in res["notes"]))
+
     def test_scalar_value_is_restored_for_a_plain_flag(self):
         cmds = self.cmds(snap_of({"production": "flag_get_enabled.json"}), "production")["commands"]
         self.assertIn("--value", cmds[1])

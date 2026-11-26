@@ -111,7 +111,7 @@ def main(argv=None):
     parser.add_argument("--input", help="JSON file (default: stdin)")
     parser.add_argument("--table", action="store_true", help="print a compact table instead of JSON")
     ns = parser.parse_args(argv)
-    raw = open(ns.input, encoding="utf-8").read() if ns.input else sys.stdin.read()
+    raw = open(ns.input, encoding="utf-8-sig").read() if ns.input else sys.stdin.read().lstrip("\ufeff")
     data = json.loads(raw)
     results = [decide(c) for c in (data if isinstance(data, list) else [data])]
     if ns.table:

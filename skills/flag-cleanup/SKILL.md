@@ -44,7 +44,7 @@ Take a flag from "probably obsolete" to "code removed, PR merged, flag archived"
 - `python scripts/snapshot.py verify --file .flag-cleanup/NAME.snapshot.json` matches.
 - Ask the user to confirm no other repository, service or client uses the flag. If they cannot, block the archive.
 
-**9. Archive.** After approval for each flag: `flagsmith feature update NAME --archive`. Read the fresh state, then `flagsmith evaluate NAME --identity cleanup-check` and report what you see. Say so if archiving changes how the flag evaluates (this is not confirmed yet). Restore command: `flagsmith feature update NAME --unarchive`.
+**9. Archive.** After approval for each flag: `python scripts/cli.py run -- feature update NAME --archive --yes` (the CLI requires `--yes` when it cannot prompt, so pass it only after approval). Confirm with `api /api/v1/projects/ID/features/ --jq` that `is_archived` is true. Then run `flagsmith evaluate NAME --identity cleanup-check -e ENV` and report what you see. Observed so far: an archived flag still evaluates with its previous state, so apps that still read it keep working. Restore: `flagsmith feature update NAME --unarchive --yes`.
 
 **10. Report.** Update the evidence report. Run `python scripts/cli.py meter` and give the user the call count and output size. State anything you could not verify.
 

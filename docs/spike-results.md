@@ -1,6 +1,6 @@
 # Spike results
 
-What the Flagsmith CLI actually does, from running it. Only read-only commands have been run so far. Nothing has been changed in Flagsmith yet.
+What the Flagsmith CLI actually does, from running it. Read-only commands first, then one approved write drill on two disposable flags in a test project (a flag was disabled and re-enabled in Production, and another was archived and unarchived). Both were restored and verified against snapshots.
 
 ## Environment
 | Item | Value |
@@ -32,13 +32,16 @@ Environment keys, project ids and account details are deliberately not recorded 
 | 13 | Field name for a permanent tag | `api /api/v1/projects/ID/tags/` | The project has no tags (`count: 0`), so the field is unseen. | UNVERIFIED |
 | 14 | Does the `Stale` tag appear? | docs | Needs Scale-up or Enterprise, so it will not appear on a free plan. | DOCS ONLY |
 | 15 | Values of `lifecycle_stage` | `flag get` | Only `new` seen. Others unknown. | UNVERIFIED |
-| 16 | Archive then unarchive round trip | | Not run (writes). | UNVERIFIED |
-| 17 | Does an archived flag still evaluate? | | Not run (writes). | UNVERIFIED |
-| 18 | Disable then restore: identical state? | | Not run (writes). | UNVERIFIED |
+| 16 | Archive then unarchive round trip | `feature update FLAG --archive --yes`, then `--unarchive --yes`, then `snapshot.py verify` | `is_archived` went true then false. State matched the snapshot in both environments. | VERIFIED |
+| 17 | Does an archived flag still evaluate? | `evaluate FLAG --identity X -e Production` after archiving | Yes. It returned the same state (`enabled: true`). `flag get` also still worked. The default `feature list` hides archived features. Checked right after the archive, so later propagation is not covered. | VERIFIED (immediate) |
+| 18 | Disable then restore: identical state? | `flag disable ... --yes`, then `flag enable ... --yes`, then `snapshot.py verify` | `MATCHES snapshot` for Production and Development. The demo app confirmed the symptom: with the flag on, checkout threw; off, it used the legacy path. | VERIFIED (flag without overrides or variants) |
 | 19 | Override effect on `evaluate` | | No overrides exist to test. | UNVERIFIED |
 | 20 | Multivariate `flag get` / `feature get` shape | | No multivariate flag in the test project. | UNVERIFIED |
-| 21 | Exit codes on failure | | Not captured by the test harness. | UNVERIFIED |
-| 22 | Does `--no-input` need `--yes` for confirmations? | | Not run (writes). | UNVERIFIED |
+| 21 | Exit codes on failure | unknown flag, unknown environment, no environment | Exit 1 with a clear message in every case. Writes refused for lack of `--yes` exit 2. | VERIFIED |
+| 22 | Does `--no-input` need `--yes` for confirmations? | `flag disable new_checkout --environment Production` | Yes. Without `--yes` it exits 2 with "pass --yes to confirm ... without an interactive terminal" and changes nothing. | VERIFIED |
+| 23 | Do our scripts handle a BOM? | `Set-Content -Encoding utf8` in Windows PowerShell | The file starts with a byte-order mark. `candidates.py` kept it in the first flag name, so the true cause lost its code evidence. Fixed: every script that reads a file now accepts a BOM. | FOUND AND FIXED |
+| 24 | Demo project, full read path | `candidates.py`, `find_refs.py`, `verdict.py` on `demo-project` | `new_checkout` was a clear winner on name and code evidence. `old_banner` got APPROVAL REQUIRED with the question "Keep the on code path?". References were found in both JavaScript and Python. | VERIFIED |
+| 25 | Measurement of the whole drill | `cli.py meter` | 22 CLI calls, 1 failed (the expected refusal), 4,774 bytes of output. Bytes, not model tokens. | MEASURED |
 
 ## Changes the findings caused
 | Finding | Change |
@@ -50,5 +53,12 @@ Environment keys, project ids and account details are deliberately not recorded 
 | 4: `value` and `enabled` are top level | Restore reads only top-level fields, which matches the real output. |
 | Real recorded outputs | Added to `tests/fixtures/recorded/` and used in tests. |
 
-## Next
-Writes need approval for each exact action. Planned drill, on the test project only: disable `new_checkout` in Production and restore it, then archive `old_banner` and unarchive it, checking `flag get` before and after each step.
+## Still unverified
+- Disable and restore, or archive and unarchive, when segment or identity overrides exist.
+- Multivariate flags (output shape, restore of variants and weights).
+- The field that marks a tag as permanent (the test project has no tags).
+- Possible values of `lifecycle_stage`.
+- How an override appears in `evaluate`'s `reason`.
+- How long an archived flag keeps evaluating, and how quickly the SDK API reflects a change.
+- The full cleanup workflow end to end (code removal, PR, merge, then archive). The drill tested only the Flagsmith side.
+- Whether a coding agent follows the skills correctly. Nothing here ran with an agent.

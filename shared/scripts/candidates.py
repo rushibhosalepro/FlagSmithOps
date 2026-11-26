@@ -109,7 +109,7 @@ def main(argv=None):
     if not os.path.isdir(ns.repo):
         sys.stderr.write("not a directory: %s\n" % ns.repo)
         return 2
-    with open(ns.flags_file, encoding="utf-8") as handle:
+    with open(ns.flags_file, encoding="utf-8-sig") as handle:  # tolerate a BOM from PowerShell
         flags = [line.strip() for line in handle if line.strip()]
     print(json.dumps(rank(ns.repo, flags, ns.keyword, ns.since_days), indent=2))
     return 0

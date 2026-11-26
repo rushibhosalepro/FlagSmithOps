@@ -146,12 +146,13 @@ def restore_commands(snap, env):
     notes = [
         "Restores the environment default only (enabled state, and a plain value where one can be read).",
         "Variants, weights, segment overrides and identity overrides are not restored. Run `snapshot.py verify` and report any difference.",
+        "The commands include --yes, which the CLI requires for writes without a terminal. Run them only after the user approves.",
     ]
     state = enabled_state(raw)
     if state is None:
         notes.append("No boolean top-level 'enabled' field in the snapshot, so no enable/disable command was generated. Restore by hand from the raw state.")
     else:
-        cmds.append(["flagsmith", "flag", "enable" if state else "disable", flag, "--environment", env])
+        cmds.append(["flagsmith", "flag", "enable" if state else "disable", flag, "--environment", env, "--yes"])
     counts = snap.get("summary", {}).get(env, {})
     if counts.get("segment_overrides") or counts.get("identity_overrides"):
         notes.append("%s segment and %s identity override(s) exist in %s. They are not restored." % (counts.get("segment_overrides") or 0, counts.get("identity_overrides") or 0, env))
@@ -160,7 +161,7 @@ def restore_commands(snap, env):
     else:
         found, value = _top(raw, ["feature_state_value", "value"])
         if found and value is not None and not isinstance(value, (dict, list)):
-            cmds.append(["flagsmith", "flag", "update", flag, "--environment", env, "--value", str(value)])
+            cmds.append(["flagsmith", "flag", "update", flag, "--environment", env, "--value", str(value), "--yes"])
             notes.append("Value restore assumes the value type is unchanged.")
     return {"commands": cmds, "notes": notes, "multivariate_detected": _has_variants(raw)}
 
@@ -205,7 +206,7 @@ def main(argv=None):
             for note in snap["notes"]:
                 print("  note: " + note)
             return 0
-        with open(ns.file, encoding="utf-8") as handle:
+        with open(ns.file, encoding="utf-8-sig") as handle:
             saved = json.load(handle)
         if ns.command == "restore-commands":
             print(json.dumps(restore_commands(saved, ns.env), indent=2))

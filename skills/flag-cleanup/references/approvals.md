@@ -18,8 +18,8 @@ Archive flag `NAME`?
 - PR #N is merged. No references remain on <branch> in: <repos>.
 - You confirmed no other service uses it: <yes/not confirmed>.
 - Environments: <env: state, ...>.
-- Command: flagsmith feature update NAME --archive
-- Restore: flagsmith feature update NAME --unarchive
+- Command: flagsmith feature update NAME --archive --yes
+- Restore: flagsmith feature update NAME --unarchive --yes
 Archive? (yes / no)
 ```
 
