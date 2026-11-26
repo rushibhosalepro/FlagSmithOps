@@ -9,7 +9,9 @@ Two Agent Skills that guide a coding agent through complete Flagsmith jobs with 
 
 Both skills follow one safety contract: PROCEED, APPROVAL REQUIRED or REFUSE, approval for every Flagsmith write, original state captured, flags archived and never deleted, and an evidence report for every run.
 
-Status: planning. Specs and steering are written. The technical spike has not been run. Nothing in `skills/` is implemented yet.
+Status: both skills are drafted and their scripts pass unit tests against a fake CLI (`python -m unittest discover -s tests\cleanup` and `-s tests\incident`). Nothing has been run against a live Flagsmith project yet, so CLI field names, archive behaviour and restore fidelity are unverified. See `skills/*/references/cli-fields.md`.
+
+After editing anything in `shared/scripts/`, run `python shared/sync.py` to copy it into the skills, and `python shared/validate_skill.py skills/<name>` to check the skill format.
 
 ## Where things are
 - `.kiro/steering/`: product, safety contract, technical context, hackathon rules, structure.
