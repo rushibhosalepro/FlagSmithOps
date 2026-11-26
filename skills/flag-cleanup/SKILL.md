@@ -14,6 +14,7 @@ Take a flag from "probably obsolete" to "code removed, PR merged, flag archived"
 - Ask for explicit approval, separately, before: opening the PR, and archiving each flag. An approval covers only the exact action shown.
 - If a command fails or its output is not what you expect, stop and show the exact error. Do not work around it.
 - Never print or commit API keys. Use `--json` with `--jq` and keep output small.
+- Read an environment's state only with `flag get NAME -e ENV` (or `snapshot.py`). `feature get` and `feature list` show a project-level default, not the environment state, so never use them as evidence of a change.
 - Run every Flagsmith command through `python scripts/cli.py run -- <args>` (add `--text` for plain output). The wrapper blocks deletes and API writes, hides keys, adds `--no-input`, and counts calls for the report. Do not call `flagsmith` directly.
 - Scripts live in `scripts/`. They do exact work. You decide, ask and explain.
 

@@ -50,6 +50,10 @@ class PackageTest(unittest.TestCase):
         allowed = ("feature update NAME --unarchive --yes",)  # documented restore text, run through the wrapper in practice
         bare = [b for b in bare if not any(a in b for a in allowed)]
         self.assertEqual(bare, [], "bare flagsmith commands in the workflow: %s" % bare)
+    def test_skill_warns_that_feature_get_is_not_environment_state(self):
+        with open(os.path.join(SKILL, "SKILL.md"), encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertIn("`feature get` and `feature list` show a project-level default", text)
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,6 +16,7 @@ Find the flag behind a broken feature, switch it off safely, prove what changed,
 - A successful command does not prove the incident is over. Verify, and say what you could not verify.
 - If a command fails or its output is not what you expect, stop and show the exact error.
 - Never print or commit API keys. Keep CLI output small with `--json --jq`.
+- Read an environment's state only with `flag get NAME -e ENV` (or `snapshot.py`). `feature get` and `feature list` show a project-level default, not the environment state, so never use them as evidence of a change.
 - Run every Flagsmith command through `python scripts/cli.py run -- <args>` (add `--text` for plain output). The wrapper blocks deletes and API writes, hides keys, adds `--no-input`, and counts calls for the report. Do not call `flagsmith` directly.
 
 ## Workflow
@@ -34,7 +35,7 @@ Find the flag behind a broken feature, switch it off safely, prove what changed,
 
 **6. Apply.** `python scripts/cli.py run -- flag disable NAME --environment ENV --yes`. The CLI refuses writes without `--yes` when it cannot prompt, so pass it only now, after the user approved this exact action. On any failure, stop and show the error. Do not retry with other options.
 
-**7. Verify.** Run `python scripts/check_effect.py --flag NAME --env ENV --identity AFFECTED [--identity OVERRIDE_USER]`. `--env` is required, so you never check the wrong environment. Include an identity covered by each override you know of. FLAG OFF means only that those identities see the flag off. PARTIAL means someone still sees the feature: name them. UNVERIFIED means you could not tell. The script always prints `Incident: NOT VERIFIED`. Never tell the user the incident is resolved. Ask them to confirm the symptom is gone, because you cannot see that from the CLI.
+**7. Verify.** Read the new state with `python scripts/cli.py run -- flag get NAME -e ENV --jq .enabled`. Then run `python scripts/check_effect.py --flag NAME --env ENV --identity AFFECTED [--identity OVERRIDE_USER]`. `--env` is required, so you never check the wrong environment. Include an identity covered by each override you know of. FLAG OFF means only that those identities see the flag off. PARTIAL means someone still sees the feature: name them. UNVERIFIED means you could not tell. The script always prints `Incident: NOT VERIFIED`. Never tell the user the incident is resolved. Ask them to confirm the symptom is gone, because you cannot see that from the CLI.
 
 **8. Restore (when asked).** Ask for approval. Run the restore commands (they include `--yes`). Confirm with `python scripts/snapshot.py verify --file .fsops/NAME.snapshot.json`. Report if the state differs. Restore covers the environment default only (enabled state and a simple value). Variants, weights and overrides are not restored. Report any difference `verify` finds.
 
