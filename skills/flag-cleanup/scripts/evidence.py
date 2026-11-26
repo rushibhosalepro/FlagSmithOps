@@ -58,6 +58,7 @@ def main(argv=None):
     parser.add_argument("--out", required=True)
     ns = parser.parse_args(argv)
     text = render(json.loads(read_text(ns.input)))
+    os.makedirs(os.path.dirname(os.path.abspath(ns.out)), exist_ok=True)
     with open(ns.out, "w", encoding="utf-8") as handle:
         handle.write(text)
     print("wrote %s" % ns.out)

@@ -326,5 +326,25 @@ class FailedCliTest(unittest.TestCase):
             snapshot.verify(snap, runner=mock.Mock(side_effect=cli.CliError("exit 1: boom")))
 
 
+class OutputFolderTest(unittest.TestCase):
+    """Found in the live cleanup run: SKILL.md writes to .flag-cleanup/ before that folder exists."""
+
+    def test_snapshot_capture_creates_the_output_folder(self):
+        target = os.path.join(tempfile.mkdtemp(), ".flag-cleanup", "nested", "f.snapshot.json")
+        raw = {"enabled": True, "type": "standard", "segment_overrides": 0, "identity_overrides": 0}
+        with mock.patch.object(snapshot.cli, "run", return_value=raw), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(snapshot.main(["capture", "--flag", "f", "--env", "p", "--out", target]), 0)
+        self.assertTrue(os.path.isfile(target))
+
+    def test_evidence_creates_the_output_folder(self):
+        import evidence
+        src = os.path.join(tempfile.mkdtemp(), "run.json")
+        with open(src, "w", encoding="utf-8") as handle:
+            json.dump({"outcome": "COMPLETED"}, handle)
+        target = os.path.join(tempfile.mkdtemp(), ".flag-cleanup", "evidence.md")
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(evidence.main(["--input", src, "--out", target]), 0)
+        self.assertTrue(os.path.isfile(target))
+
 if __name__ == "__main__":
     unittest.main()

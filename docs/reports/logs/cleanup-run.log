@@ -1,0 +1,155 @@
+# Cleanup workflow run (live)
+Date: 2026-11-26 14:23 local. CLI: flagsmith v2.0.0. Repo: private disposable repo created from demo-project.
+Skill followed: skills/flag-cleanup/SKILL.md. Executed by the same agent that wrote the skill (not an independent agent).
+
+### $ npx --yes skills add rushibhosalepro/FlagSmithOps --skill flag-cleanup --skill flag-incident-response -a kiro-cli -y
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 31158 ms)
+```n
+███████╗██╗  ██╗██╗██╗     ██╗     ███████╗
+██╔════╝██║ ██╔╝██║██║     ██║     ██╔════╝
+███████╗█████╔╝ ██║██║     ██║     ███████╗
+╚════██║██╔═██╗ ██║██║     ██║     ╚════██║
+███████║██║  ██╗██║███████╗███████╗███████║
+╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚══════╝
+
+T   skills 
+[?25l|
+o  Source: https://github.com/rushibhosalepro/FlagSmithOps.git
+[?25h[?25l|
+•  Cloning repository…[1G[Jo  Cloning repository…[1G[JO  Cloning repository…[1G[J0  Cloning repository…[1G[J•  Cloning repository…[1G[Jo  Cloning repository…[1G[JO  Cloning repository…[1G[J0  Cloning repository…[1G[J•  Cloning repository….[1G[Jo  Cloning repository….[1G[JO  Cloning repository….[1G[J0  Cloning repository….[1G[J•  Cloning repository….[1G[Jo  Cloning repository….[1G[JO  Cloning repository….[1G[J0  Cloning repository….[1G[J•  Cloning repository…..[1G[Jo  Cloning repository…..[1G[JO  Cloning repository…..[1G[J0  Cloning repository…..[1G[J•  Cloning repository…..[1G[Jo  Cloning repository…..[1G[JO  Cloning repository…..[1G[J0  Cloning repository…..[1G[J•  Cloning repository…...[1G[Jo  Cloning repository…...[1G[JO  Cloning repository…...[1G[J0  Cloning repository…...[1G[J•  Cloning repository…...[1G[Jo  Repository cloned
+[?25h[?25l|
+[1G[Jo  Found 2 skills
+[?25h|
+•  Selected 2 skills: flag-cleanup, flag-incident-response
+
+|
+o  Installation Summary -------------------------------------------------------+
+|                                                                              |
+|  ~\AppData\Local\Temp\fsops_demo_shop\.agents\skills\flag-cleanup            |
+|    copy → Kiro CLI                                                           |
+|                                                                              |
+|  ~\AppData\Local\Temp\fsops_demo_shop\.agents\skills\flag-incident-response  |
+|    copy → Kiro CLI                                                           |
+|                                                                              |
++------------------------------------------------------------------------------+
+[?25l|
+[1G[Jo  Installation complete
+[?25h
+|
+o  Installed 2 skills -------------------------------------------------------+
+|                                                                            |
+|  ✓ flag-cleanup (copied)                                                   |
+|    → ~\AppData\Local\Temp\fsops_demo_shop\.kiro\skills\flag-cleanup        |
+|  ✓ flag-incident-response (copied)                                         |
+|    →                                                                       |
+|  ~\AppData\Local\Temp\fsops_demo_shop\.kiro\skills\flag-incident-response  |
+|                                                                            |
++----------------------------------------------------------------------------+
+
+|
+—  Done!  Review skills before use; they run with full agent permissions.
+```
+
+## Install
+Installed with: npx skills add rushibhosalepro/FlagSmithOps --skill flag-cleanup --skill flag-incident-response -a kiro-cli -y
+Result: both skills in .kiro/skills/. Content identical to the repo after line-ending normalisation (npx wrote CRLF).
+
+## Step 0 - Preflight
+
+### $ flagsmith --version
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 92 ms)
+```nflagsmith version v2.0.0
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\cli.py run --text -- config
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 369 ms)
+```nConfig file    ~\AppData\Local\Temp\fsops_demo_shop\flagsmith.json   default
+Project        testing (56435)                                       config
+Organisation   -                                                     default
+Environment    -                                                     default
+API            https://api.flagsmith.com                             default
+SDK API        https://edge.api.flagsmith.com                        default
+```
+
+Scope confirmed by the operator (not a live human answer; taken from the demo README and the validation brief): project 'testing', environments Production and Development, production = Production, repository = this repo only.
+
+## Step 1 - Candidates
+
+### $ python .kiro\skills\flag-cleanup\scripts\cli.py run -- environment list --jq "[.[].name]"
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 890 ms)
+```n["Development","Production"]
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\cli.py run -- api /api/v1/projects/56435/features/ --jq "{next, items: [.results[] | {name, tags, is_archived, variants: (.multivariate_options | length), modified: .last_modified_in_any_environment}]}"
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 914 ms)
+```n{"items":[{"is_archived":false,"modified":"2026-11-26T08:04:14.826925+00:00","name":"new_checkout","tags":[],"variants":0},{"is_archived":false,"modified":"2026-11-26T06:42:53.378593+00:00","name":"old_banner","tags":[],"variants":0},{"is_archived":false,"modified":"2026-11-26T08:45:31.512997+00:00","name":"fsops_tmp_perm","tags":[35492],"variants":0},{"is_archived":false,"modified":"2026-11-26T08:50:42.753079+00:00","name":"fsops_tmp_mv","tags":[],"variants":2},{"is_archived":false,"modified":"2026-11-26T08:47:43.792719+00:00","name":"fsops_tmp_override","tags":[],"variants":0}],"next":null}
+```
+
+next is null, so there is one page. 5 candidates. User named none, so all 5 are considered.
+
+## Steps 2 and 3 - Inspect and search code
+
+### $ python .kiro\skills\flag-cleanup\scripts\cli.py run -- api /api/v1/projects/56435/tags/ --jq "[.results[] | {id, label, is_permanent}]"
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 897 ms)
+```n[{"id":35492,"is_permanent":true,"label":"fsops-tmp-permanent"}]
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\snapshot.py capture --flag new_checkout --env Production --env Development --known-envs Production,Development --out .flag-cleanup\new_checkout.snapshot.json
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 1, 2733 ms)
+```nTraceback (most recent call last):
+  File "C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop\.kiro\skills\flag-cleanup\scripts\snapshot.py", line 236, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop\.kiro\skills\flag-cleanup\scripts\snapshot.py", line 206, in main
+    with open(ns.out, "w", encoding="utf-8") as handle:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '.flag-cleanup\\new_checkout.snapshot.json'
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\snapshot.py capture --flag old_banner --env Production --env Development --known-envs Production,Development --out .flag-cleanup\old_banner.snapshot.json
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 1, 1733 ms)
+```nTraceback (most recent call last):
+  File "C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop\.kiro\skills\flag-cleanup\scripts\snapshot.py", line 236, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop\.kiro\skills\flag-cleanup\scripts\snapshot.py", line 206, in main
+    with open(ns.out, "w", encoding="utf-8") as handle:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '.flag-cleanup\\old_banner.snapshot.json'
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\snapshot.py capture --flag fsops_tmp_perm --env Production --env Development --known-envs Production,Development --out .flag-cleanup\fsops_tmp_perm.snapshot.json
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 1, 1682 ms)
+```nTraceback (most recent call last):
+  File "C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop\.kiro\skills\flag-cleanup\scripts\snapshot.py", line 236, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop\.kiro\skills\flag-cleanup\scripts\snapshot.py", line 206, in main
+    with open(ns.out, "w", encoding="utf-8") as handle:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '.flag-cleanup\\fsops_tmp_perm.snapshot.json'
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\snapshot.py capture --flag fsops_tmp_mv --env Production --env Development --known-envs Production,Development --out .flag-cleanup\fsops_tmp_mv.snapshot.json
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 1, 2857 ms)
+```nTraceback (most recent call last):
+  File "C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop\.kiro\skills\flag-cleanup\scripts\snapshot.py", line 236, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop\.kiro\skills\flag-cleanup\scripts\snapshot.py", line 206, in main
+    with open(ns.out, "w", encoding="utf-8") as handle:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '.flag-cleanup\\fsops_tmp_mv.snapshot.json'
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\snapshot.py capture --flag fsops_tmp_override --env Production --env Development --known-envs Production,Development --out .flag-cleanup\fsops_tmp_override.snapshot.json
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 1, 2620 ms)
+```nTraceback (most recent call last):
+  File "C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop\.kiro\skills\flag-cleanup\scripts\snapshot.py", line 236, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop\.kiro\skills\flag-cleanup\scripts\snapshot.py", line 206, in main
+    with open(ns.out, "w", encoding="utf-8") as handle:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '.flag-cleanup\\fsops_tmp_override.snapshot.json'
+```

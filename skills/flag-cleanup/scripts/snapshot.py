@@ -203,6 +203,7 @@ def main(argv=None):
             ids = [s for s in ns.segment_ids.split(",") if s]
             known = [s for s in ns.known_envs.split(",") if s] or None
             snap = capture(ns.flag, ns.env, ids, known_envs=known)
+            os.makedirs(os.path.dirname(os.path.abspath(ns.out)), exist_ok=True)
             with open(ns.out, "w", encoding="utf-8") as handle:
                 json.dump(snap, handle, indent=2)
             print("saved %s" % ns.out)
