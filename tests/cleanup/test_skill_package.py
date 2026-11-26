@@ -44,6 +44,9 @@ class PackageTest(unittest.TestCase):
         with open(os.path.join(SKILL, "SKILL.md"), encoding="utf-8") as handle:
             text = handle.read()
         self.assertIn("`feature get` and `feature list` show a project-level default", text)
+    def test_archive_gate_has_no_override(self):
+        with open(os.path.join(SKILL, "SKILL.md"), encoding="utf-8") as handle:
+            self.assertIn("This gate has no override", handle.read())
 
 if __name__ == "__main__":
     unittest.main()

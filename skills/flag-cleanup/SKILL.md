@@ -41,7 +41,7 @@ Take a flag from "probably obsolete" to "code removed, PR merged, flag archived"
 **7. Evidence and PR.** Write the run to `.fsops/run.json`, then `python scripts/evidence.py --input .fsops/run.json --out .flag-cleanup/evidence.md`. Commit the code, `.flag-cleanup/evidence.md` and the snapshot files. After approval, open the PR with `gh pr create`, using the evidence as the body. Stop here until the PR merges. Tell the user to run this skill again after the merge.
 
 **8. After the merge (resume).** In a new session, read `.flag-cleanup/` on the default branch to find flags awaiting archive. Do not trust the files. Re-check live:
-- `gh pr view --json state,mergedAt` shows merged. If not, block the archive.
+- `gh pr view --json state,mergedAt` shows merged. If not, block the archive. This gate has no override: do not offer to archive before the merge, even if the user insists.
 - `python scripts/find_refs.py` on the default branch shows no references left.
 - `python scripts/snapshot.py verify --file .flag-cleanup/NAME.snapshot.json` matches.
 - Ask the user to confirm no other repository, service or client uses the flag. If they cannot, block the archive.
