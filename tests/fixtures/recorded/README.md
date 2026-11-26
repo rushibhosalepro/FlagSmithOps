@@ -1,0 +1,1 @@
+Recorded from the real flagsmith CLI v2.0.0 (Flagsmith Cloud, read-only calls). Environment keys, project ids and account details are not included. Unlike tests/fixtures/cli_outputs, these are REAL.

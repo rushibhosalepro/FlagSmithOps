@@ -49,7 +49,8 @@ class CaptureTest(unittest.TestCase):
 
     def test_overrides_not_captured_is_explicit(self):
         snap = snapshot.capture("f", ["production"], runner=runner_from({"production": "flag_get_enabled.json"}))
-        self.assertTrue(any("overrides were not captured" in n for n in snap["notes"]))
+        self.assertTrue(any("Override counts were not found" in n and "were not captured" in n for n in snap["notes"]))
+        self.assertIsNone(snap["has_overrides"])
 
     def test_captured_segment_overrides_are_marked_reference_only(self):
         runner = runner_from({"production": "flag_get_enabled.json", ("production", "7"): {"enabled": False}})

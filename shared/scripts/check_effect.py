@@ -52,11 +52,15 @@ def check(flag, identities, env=None, runner=None):
     rows = []
     for identity in identities:
         args = ["evaluate", flag, "--identity", identity] + (["--environment", env] if env else [])
+        reason = None
         try:
-            state, error = flag_state(runner(args), flag), None
+            response = runner(args)
+            state, error = flag_state(response, flag), None
+            if isinstance(response, dict) and isinstance(response.get("reason"), str):
+                reason = response["reason"]  # observed values: STATIC. Others (for example targeting) are unverified.
         except cli.CliError as err:
             state, error = None, str(err)
-        rows.append({"identity": identity, "enabled": state, "error": error})
+        rows.append({"identity": identity, "enabled": state, "error": error, "reason": reason})
     still_on = [r["identity"] for r in rows if r["enabled"] is True]
     unknown = [r["identity"] for r in rows if r["enabled"] is None]
     if not env:
@@ -87,7 +91,8 @@ def main(argv=None):
     out = check(ns.flag, ns.identity, ns.env)
     for row in out["rows"]:
         shown = "unknown" if row["enabled"] is None else ("on" if row["enabled"] else "off")
-        print("%-24s %s%s" % (row["identity"], shown, "  (%s)" % row["error"] if row["error"] else ""))
+        extra = "  (%s)" % row["error"] if row["error"] else ("  reason=%s" % row["reason"] if row["reason"] else "")
+        print("%-24s %s%s" % (row["identity"], shown, extra))
     print(out["result"])
     print("Incident: " + out["incident_status"])
     if out["result"].startswith("PARTIAL"):

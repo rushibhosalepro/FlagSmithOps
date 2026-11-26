@@ -1,24 +1,22 @@
-# CLI fields (unverified assumptions)
+# CLI fields
 
-These have not been confirmed against a live CLI. Check them once before relying on them.
+Observed with flagsmith CLI v2.0.0 on Flagsmith Cloud, using read-only commands. Anything not listed under "Observed" is unverified. Confirm the shape once at the start of a session. If a field is missing or different, tell the user and do not guess.
 
-## Field check (first run)
-```
-flagsmith feature list --jq '.[0] | keys'
-flagsmith flag get <any-flag> --environment <env> --jq 'keys'
-flagsmith evaluate <any-flag> --identity test --jq 'keys'
-```
-If a field is missing or named differently, tell the user, adapt the filters, and note it in the evidence. Do not guess a field.
+## Observed
+| Command | Fields |
+|---|---|
+| `feature list --json` | `id`, `name`, `description`, `type`, `default_value`, `enabled` |
+| `flag get FLAG -e ENV --json` | `feature`, `type`, `description`, `enabled` (boolean), `value`, `segment_overrides` (count), `identity_overrides` (count), `code_references` (count), `lifecycle_stage` |
+| `evaluate FLAG --identity ID -e ENV --json` | `name`, `enabled`, `value`, `reason` (seen: `STATIC`) |
+| `environment list --json` | per environment: `id`, `name`, `api_key` (the client-side SDK key), `project` and more |
 
-## Assumed
-| Command | Field | Used for |
-|---|---|---|
-| `feature list` | `name` | flag names for `candidates.py` |
-| `flag get` | `enabled` | state per environment, restore command |
-| `evaluate FLAG --identity ID` | `enabled`, with the flag name in `name` or `feature.name` | `check_effect.py` |
-
-## Evaluation environment
-The CLI documents `--environment` as the environment's client-side SDK key. Some commands may accept a name. If a command rejects a name, use the key and record that in the evidence. Unverified. `check_effect.py` requires `--env` so it never evaluates whichever environment the CLI happens to be bound to.
+Rules that follow:
+- `-e` accepts the environment name (tested with `Production`) or its SDK key. With no `-e`, the CLI stops with "no environment". Always pass `-e`, and pass the one the user named.
+- `enabled` in `feature list` and `feature get` is **not** an environment state. It was `false` while the environment was `true`. Only `flag get -e ENV` gives the environment state.
+- `evaluate` resolves for the identity, with overrides applied. `check_effect.py` uses it. Its `reason` field is shown in the output. Only `STATIC` has been seen. Other values are unverified.
 
 ## Overrides
-The CLI reads overrides only by segment id or identity id. Without ids, overrides cannot be listed. Say so in the report and ask the user which identities or segments to check.
+`flag get` returns `segment_overrides` and `identity_overrides` as counts. `snapshot.py capture` reads them and sets `has_overrides`. Counts do not say which identities are affected. To check an identity, run `check_effect.py` for it.
+
+## Still unverified
+Multivariate output shape. Whether `flag disable` and the restore commands return state exactly. Whether `--no-input` makes a command that asks for confirmation fail unless `--yes` is passed. CLI exit codes. How an override shows up in `evaluate` (`reason`).

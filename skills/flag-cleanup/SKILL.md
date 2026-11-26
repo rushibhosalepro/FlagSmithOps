@@ -20,13 +20,13 @@ Take a flag from "probably obsolete" to "code removed, PR merged, flag archived"
 
 **0. Preflight.** Run `flagsmith --version`, `flagsmith auth status`, `flagsmith config`. Ask the user to confirm: the Flagsmith project, the environments, which one is production, and which repositories are in scope. First time only: check the CLI fields against `references/cli-fields.md`. If the CLI is not logged in, stop and tell the user.
 
-**1. Candidates.** List features with `flagsmith feature list` and a `--jq` filter that returns only name, tags and archived status (see `references/cli-fields.md`). Skip archived features and say so. If the user named flags, use only those.
+**1. Candidates.** `flagsmith feature list` has no tags or archived flag, so read features with `flagsmith api /api/v1/projects/PROJECT_ID/features/` and the `--jq` filter in `references/cli-fields.md`. Follow `next` if results are paginated. Skip archived features and say so. If the user named flags, use only those.
 
 **2. Inspect.** For each candidate list environment names with `flagsmith environment list`, then run `python scripts/snapshot.py capture --flag NAME --env ENV [--env ENV2] --known-envs ENV,ENV2,... --out .flag-cleanup/NAME.snapshot.json`. It reads the flag in every environment and prints one line each (enabled=unknown means the state could not be read). Tell the user about any WARNING for environments not captured. Note whether the flag is multivariate.
 
 **3. Search code.** Run `python scripts/find_refs.py --repo . [--repo OTHER] --flag NAME --summary`. It reports SDK calls, other mentions, dynamic calls that could read any flag, and languages it did not search (`references/patterns.md`).
 
-**4. Decide.** Write one JSON object per candidate to `.fsops/candidates.json` (fields in `scripts/verdict.py`), then run `python scripts/verdict.py --input .fsops/candidates.json --table`. Show the user the table. Ask the questions it returns, for example which code path to keep. Re-run with their answers in `user.kept_behavior` and `user.other_usage`.
+**4. Decide.** Write one JSON object per candidate to `.fsops/candidates.json` (fields in `scripts/verdict.py`; take `has_overrides` from the snapshot), then run `python scripts/verdict.py --input .fsops/candidates.json --table`. Show the user the table. Ask the questions it returns, for example which code path to keep. Re-run with their answers in `user.kept_behavior` and `user.other_usage`.
 - REFUSE: stop for that flag and explain why.
 - APPROVAL REQUIRED: resolve the reasons with the user. Do not guess.
 - PROCEED: eligible. Still present the plan for approval (step 5).

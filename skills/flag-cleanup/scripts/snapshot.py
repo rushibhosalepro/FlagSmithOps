@@ -42,17 +42,50 @@ def capture(flag, envs, segment_ids=(), runner=None, known_envs=None):
             except cli.CliError as err:
                 entry["segment_overrides"][str(sid)] = {"error": str(err)}
         snap["environments"][env] = entry
+    snap["summary"] = {env: _summarise(entry["default"]) for env, entry in snap["environments"].items()}
+    snap["has_overrides"] = overrides_exist(snap["summary"])
     if known_envs is None:
         snap["notes"].append("Environments not named were not captured, and the full environment list was not checked.")
     if snap["not_captured"]:
         snap["notes"].append("NOT captured: " + ", ".join(snap["not_captured"]))
     if segment_ids:
         snap["notes"].append("Segment overrides were captured for reference only. They are never restored.")
+    elif snap["has_overrides"] is None:
+        snap["notes"].append(
+            "Override counts were not found in the CLI output, and the overrides themselves were not captured."
+        )
     else:
         snap["notes"].append(
-            "Segment and identity overrides were not captured. The CLI reads them only by segment or identity id."
+            "Override counts come from the CLI (segment_overrides, identity_overrides). The overrides themselves were not captured and are never restored."
         )
     return snap
+
+
+def _count(raw, key):
+    """A non-negative integer field of the top-level object, else None (unknown)."""
+    value = raw.get(key) if isinstance(raw, dict) else None
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
+def _summarise(raw):
+    stage = raw.get("lifecycle_stage") if isinstance(raw, dict) else None
+    return {
+        "enabled": enabled_state(raw),
+        "segment_overrides": _count(raw, "segment_overrides"),
+        "identity_overrides": _count(raw, "identity_overrides"),
+        "code_references": _count(raw, "code_references"),
+        "lifecycle_stage": stage if isinstance(stage, str) else None,
+    }
+
+
+def overrides_exist(summary):
+    """True if any environment reports an override, False only if every count is known and zero, else None."""
+    counts = [s[k] for s in summary.values() for k in ("segment_overrides", "identity_overrides")]
+    if any(c for c in counts if c is not None):
+        return True
+    if counts and all(c == 0 for c in counts):
+        return False
+    return None
 
 
 def _strip(obj, ignore):
@@ -119,6 +152,9 @@ def restore_commands(snap, env):
         notes.append("No boolean top-level 'enabled' field in the snapshot, so no enable/disable command was generated. Restore by hand from the raw state.")
     else:
         cmds.append(["flagsmith", "flag", "enable" if state else "disable", flag, "--environment", env])
+    counts = snap.get("summary", {}).get(env, {})
+    if counts.get("segment_overrides") or counts.get("identity_overrides"):
+        notes.append("%s segment and %s identity override(s) exist in %s. They are not restored." % (counts.get("segment_overrides") or 0, counts.get("identity_overrides") or 0, env))
     if _has_variants(raw):
         notes.append("This flag appears to be multivariate. Its value was not restored.")
     else:
@@ -159,9 +195,11 @@ def main(argv=None):
             with open(ns.out, "w", encoding="utf-8") as handle:
                 json.dump(snap, handle, indent=2)
             print("saved %s" % ns.out)
-            for env, entry in snap["environments"].items():
-                state = enabled_state(entry["default"])
-                print("  %s: enabled=%s" % (env, "unknown" if state is None else state))
+            for env, s in snap["summary"].items():
+                shown = lambda v: "unknown" if v is None else v  # noqa: E731
+                print("  %s: enabled=%s segment_overrides=%s identity_overrides=%s lifecycle_stage=%s"
+                      % (env, shown(s["enabled"]), shown(s["segment_overrides"]), shown(s["identity_overrides"]), shown(s["lifecycle_stage"])))
+            print("  has_overrides=%s" % ("unknown" if snap["has_overrides"] is None else snap["has_overrides"]))
             if snap["not_captured"]:
                 print("  WARNING: not captured: " + ", ".join(snap["not_captured"]))
             for note in snap["notes"]:

@@ -1,0 +1,8 @@
+{
+  "id": 305072,
+  "name": "new_checkout",
+  "description": "Demo: broken one-page checkout (incident drill)",
+  "type": "standard",
+  "default_value": null,
+  "enabled": false
+}

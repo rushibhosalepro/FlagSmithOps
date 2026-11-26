@@ -96,7 +96,7 @@ Evidence reports are written to `evidence.md` (incident) and `.flag-cleanup/` (c
 - Change requests and scheduled changes (paid Flagsmith plans) are not supported.
 
 ## Status
-The scripts pass unit tests against a fake CLI. The skills have not yet been run against a live Flagsmith project, so some CLI details are unverified. They are listed in `skills/*/references/cli-fields.md`. The skills tell the agent to check them on first use.
+The scripts pass unit tests. The CLI's read-only output (flag state, override counts, evaluation, the Management API) was checked against a live Flagsmith Cloud project with CLI v2.0.0, and the results are in `docs/spike-results.md`. Write operations (disable and restore, archive and unarchive) have not been run yet, so how they behave is still unverified.
 
 ## Develop
 ```

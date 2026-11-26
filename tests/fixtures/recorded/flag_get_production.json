@@ -1,0 +1,11 @@
+{
+  "feature": "new_checkout",
+  "type": "standard",
+  "description": "Demo: broken one-page checkout (incident drill)",
+  "enabled": true,
+  "value": null,
+  "segment_overrides": 0,
+  "identity_overrides": 0,
+  "code_references": 0,
+  "lifecycle_stage": "new"
+}

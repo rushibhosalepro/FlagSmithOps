@@ -92,6 +92,22 @@ class FlagStateTest(unittest.TestCase):
         self.assertIsNone(check_effect.flag_state({"weird": 1}, "f"))
 
 
+class RecordedEvaluateTest(unittest.TestCase):
+    """Real `flagsmith evaluate --identity` output, recorded from CLI v2.0.0."""
+
+    def test_state_and_reason_are_read_from_the_real_shape(self):
+        real = _paths.load_json("recorded", "evaluate_with_identity.json")
+        self.assertIs(check_effect.flag_state(real, "new_checkout"), True)
+        out = check_effect.check("new_checkout", ["spike-user"], env="Production", runner=lambda args: real)
+        self.assertEqual(out["rows"][0]["reason"], "STATIC")
+        self.assertTrue(out["result"].startswith("PARTIAL"))  # still on, so not mitigated
+
+    def test_disabled_real_shape_reports_flag_off_but_not_resolved(self):
+        real = dict(_paths.load_json("recorded", "evaluate_with_identity.json"), enabled=False)
+        out = check_effect.check("new_checkout", ["spike-user"], env="Production", runner=lambda args: real)
+        self.assertTrue(out["result"].startswith("FLAG OFF"))
+        self.assertTrue(out["incident_status"].startswith("NOT VERIFIED"))
+
 class MainTest(unittest.TestCase):
     def test_flag_off_exits_0_but_still_says_incident_not_verified(self):
         code, text = run_main({"a": False}, ["a"])
