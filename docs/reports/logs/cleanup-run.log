@@ -218,3 +218,358 @@ fsops_tmp_override: sdk_calls=0 other_literals=0
 dynamic call sites: 0
 unsearched languages: none
 ```
+
+**FAILED (bug found):** find_refs.py reported 38 files searched for a 6-file app: it searched the installed skill's own scripts under .kiro/. Fixed in the next commit (agent tooling folders skipped). Skills refreshed with 'npx skills update'. Re-running step 3.
+
+### $ python .kiro\skills\flag-cleanup\scripts\find_refs.py --repo . --flag new_checkout --flag old_banner --flag fsops_tmp_perm --flag fsops_tmp_mv --flag fsops_tmp_override --summary
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 211 ms)
+```nfiles searched: 5
+new_checkout: sdk_calls=1 other_literals=2
+  fsops_demo_shop:src/checkout.js:3 [other_literal]
+  fsops_demo_shop:src/checkout.js:5 [other_literal]
+  fsops_demo_shop:src/checkout.js:26 [sdk_call]
+old_banner: sdk_calls=2 other_literals=1
+  fsops_demo_shop:src/banner.js:3 [other_literal]
+  fsops_demo_shop:src/banner.js:8 [sdk_call]
+  fsops_demo_shop:src/banner_text.py:5 [sdk_call]
+fsops_tmp_perm: sdk_calls=0 other_literals=0
+fsops_tmp_mv: sdk_calls=0 other_literals=0
+fsops_tmp_override: sdk_calls=0 other_literals=0
+dynamic call sites: 0
+unsearched languages: none
+```
+
+## Step 4 - Decide (first pass, no human answers)
+Candidates built from this run's real outputs (.fsops/feats.json, tags.json, refs.json, .flag-cleanup/*.snapshot.json).
+
+### $ python .kiro\skills\flag-cleanup\scripts\verdict.py --input .fsops\candidates.json --table
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 210 ms)
+```nnew_checkout                 APPROVAL REQUIRED  staleness not established; 2 non-SDK mention(s) of the flag (config, tests, docs) need review; environments differ: Development=off, Production=on; production is on; kept behaviour not confirmed
+old_banner                   APPROVAL REQUIRED  staleness not established; 1 non-SDK mention(s) of the flag (config, tests, docs) need review; production is on; kept behaviour not confirmed
+fsops_tmp_perm               REFUSE             permanent tag: protected from cleanup; staleness not established; production is on; kept behaviour not confirmed
+fsops_tmp_mv                 APPROVAL REQUIRED  staleness not established; multivariate flag: variant to keep not named
+fsops_tmp_override           APPROVAL REQUIRED  staleness not established; segment or identity overrides exist; environments differ: Development=on, Production=off; production is off; kept behaviour not confirmed
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\verdict.py --input .fsops\candidates.json --table
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 205 ms)
+```nnew_checkout                 APPROVAL REQUIRED  staleness not established; 2 non-SDK mention(s) of the flag (config, tests, docs) need review; environments differ: Development=off, Production=on; production is on; kept behaviour not confirmed
+old_banner                   APPROVAL REQUIRED  staleness not established; 1 non-SDK mention(s) of the flag (config, tests, docs) need review; production is on; kept behaviour not confirmed
+fsops_tmp_perm               REFUSE             permanent tag: protected from cleanup; staleness not established; production is on; kept behaviour not confirmed
+fsops_tmp_mv                 APPROVAL REQUIRED  staleness not established; multivariate flag: variant to keep not named
+fsops_tmp_override           APPROVAL REQUIRED  staleness not established; segment or identity overrides exist; environments differ: Development=on, Production=off; production is off; kept behaviour not confirmed
+```
+
+## Step 4 - Human answers
+Answers supplied by the operator under the validation brief, NOT by an independent human in real time:
+- old_banner: obsolete ("the sale is over", demo README). Keep the OFF path (remove the banner). No other service uses it (single demo repo).
+- The non-SDK mention is src/banner.js:3, a code comment. Reviewed: it is removed with the branch.
+- new_checkout, fsops_tmp_perm, fsops_tmp_mv, fsops_tmp_override: out of scope for this cleanup. No answers given.
+
+### $ python .kiro\skills\flag-cleanup\scripts\verdict.py --input .fsops\candidates.json --table
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 184 ms)
+```nnew_checkout                 APPROVAL REQUIRED  staleness not established; 2 non-SDK mention(s) of the flag (config, tests, docs) need review; environments differ: Development=off, Production=on; production is on; kept behaviour not confirmed
+old_banner                   APPROVAL REQUIRED  1 non-SDK mention(s) of the flag (config, tests, docs) need review; kept behaviour 'off' differs from production 'on'
+fsops_tmp_perm               REFUSE             permanent tag: protected from cleanup; staleness not established; production is on; kept behaviour not confirmed
+fsops_tmp_mv                 APPROVAL REQUIRED  staleness not established; multivariate flag: variant to keep not named
+fsops_tmp_override           APPROVAL REQUIRED  staleness not established; segment or identity overrides exist; environments differ: Development=on, Production=off; production is off; kept behaviour not confirmed
+```
+
+## Step 5 - Plan presented (references/approvals.md wording)
+Plan for flag `old_banner`:
+- Remove 2 SDK references: src/banner.js:8, src/banner_text.py:5 (and the comment at src/banner.js:3).
+- Keep the OFF code path. Production is ON, so users stop seeing the banner after deploy. This is a behaviour change.
+- Update the test in test/shop.test.js that asserts the banner shows when the flag is on (it tests the removed path).
+- Tests: npm test.
+- Rollback: revert the PR. Flag state is unchanged until the archive is approved.
+Open the PR? -> APPROVED for this exact plan (validation brief; operator). Archive is a separate approval.
+
+## Step 6 - Change code
+### $ npm test
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 1260 ms)
+```n
+> flagsmith-demo-shop@1.0.0 test
+> node --test test/shop.test.js
+
+✔ legacy checkout prices discount lines when new_checkout is off (27.692ms)
+✔ new checkout throws on discount lines when new_checkout is on (demo bug) (0.4909ms)
+✔ new checkout works on plain carts when new_checkout is on (0.1319ms)
+✔ banner shows only when old_banner is on (0.2171ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 400.79
+```
+
+### $ npm test
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 634 ms)
+```n
+> flagsmith-demo-shop@1.0.0 test
+> node --test test/shop.test.js
+
+✔ legacy checkout prices discount lines when new_checkout is off (1.827ms)
+✔ new checkout throws on discount lines when new_checkout is on (demo bug) (0.5991ms)
+✔ new checkout works on plain carts when new_checkout is on (0.1855ms)
+✔ banner shows only when old_banner is on (0.2696ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 104.994
+```
+
+### $ git checkout -b chore/remove-flag-old_banner
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 178 ms)
+```nSwitched to a new branch 'chore/remove-flag-old_banner'
+```
+
+### $ git diff --stat
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 112 ms)
+```nwarning: in the working copy of 'src/banner.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/banner_text.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'test/shop.test.js', LF will be replaced by CRLF the next time Git touches it
+ src/banner.js      | 12 +++---------
+ src/banner_text.py |  8 +++-----
+ test/shop.test.js  |  4 ++--
+ 3 files changed, 8 insertions(+), 16 deletions(-)
+```
+
+### $ npm test
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 553 ms)
+```n
+> flagsmith-demo-shop@1.0.0 test
+> node --test test/shop.test.js
+
+✔ legacy checkout prices discount lines when new_checkout is off (1.516ms)
+✔ new checkout throws on discount lines when new_checkout is on (demo bug) (0.5609ms)
+✔ new checkout works on plain carts when new_checkout is on (0.1363ms)
+✔ no banner is shown (winter sale removed) (0.1444ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 90.1258
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\find_refs.py --repo . --flag old_banner --summary
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 177 ms)
+```nfiles searched: 5
+old_banner: sdk_calls=0 other_literals=1
+  fsops_demo_shop:src/banner.js:3 [other_literal]
+dynamic call sites: 0
+unsearched languages: none
+```
+
+### $ set FLAGS=old_banner&& node src/app.js
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 98 ms)
+```ncheckout: {"total":80,"via":"legacy"}
+banner: null
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\find_refs.py --repo . --flag old_banner --summary
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 161 ms)
+```nfiles searched: 5
+old_banner: sdk_calls=0 other_literals=0
+dynamic call sites: 0
+unsearched languages: none
+```
+
+### $ npm test
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 607 ms)
+```n
+> flagsmith-demo-shop@1.0.0 test
+> node --test test/shop.test.js
+
+✔ legacy checkout prices discount lines when new_checkout is off (1.6743ms)
+✔ new checkout throws on discount lines when new_checkout is on (demo bug) (0.493ms)
+✔ new checkout works on plain carts when new_checkout is on (0.1419ms)
+✔ no banner is shown (winter sale removed) (0.179ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 102.5038
+```
+
+## Step 7 - Evidence and PR
+
+### $ python .kiro\skills\flag-cleanup\scripts\evidence.py --input .fsops\run.json --out .flag-cleanup\evidence.md
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 212 ms)
+```nwrote .flag-cleanup\evidence.md
+```
+
+### $ git add src test .flag-cleanup
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 117 ms)
+```nwarning: in the working copy of 'src/banner.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/banner_text.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'test/shop.test.js', LF will be replaced by CRLF the next time Git touches it
+```
+
+### $ git commit -q -m "Remove old_banner flag and winter-sale banner"
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 180 ms)
+```n
+```
+
+### $ git push -q -u origin chore/remove-flag-old_banner
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 3200 ms)
+```nremote: 
+remote: Create a pull request for 'chore/remove-flag-old_banner' on GitHub by visiting:        
+remote:      https://github.com/rushibhosalepro/flagsmithops-demo-shop/pull/new/chore/remove-flag-old_banner        
+remote:
+```
+
+### $ gh pr create --base main --head chore/remove-flag-old_banner --title "Remove old_banner flag (FlagSmithOps cleanup)" --body-file .flag-cleanup/evidence.md
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 3471 ms)
+```nhttps://github.com/rushibhosalepro/flagsmithops-demo-shop/pull/1
+```
+
+### $ gh pr create --base main --head chore/remove-flag-old_banner --title "Remove old_banner flag (FlagSmithOps cleanup)" --body-file .flag-cleanup/evidence.md
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 1, 1427 ms)
+```na pull request for branch "chore/remove-flag-old_banner" into branch "main" already exists:
+https://github.com/rushibhosalepro/flagsmithops-demo-shop/pull/1
+```
+
+PR: https://github.com/rushibhosalepro/flagsmithops-demo-shop/pull/1 (private disposable repo).
+
+## Step 8 - Archive gate BEFORE merge (must block)
+
+### $ gh pr view 1 --json state,mergedAt
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 794 ms)
+```n{"mergedAt":null,"state":"OPEN"}
+```
+
+Gate result: state=OPEN, mergedAt=null -> archive BLOCKED. No archive command was run.
+
+## Merge (human step, performed by the operator under the validation brief)
+
+### $ gh pr merge 1 --squash --delete-branch
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 8208 ms)
+```nFrom https://github.com/rushibhosalepro/flagsmithops-demo-shop
+ * branch            main       -> FETCH_HEAD
+   5a86c7b..284a08c  main       -> origin/main
+Updating 5a86c7b..284a08c
+Fast-forward
+ .flag-cleanup/evidence.md                      | 53 ++++++++++++++++
+ .flag-cleanup/fsops_tmp_mv.snapshot.json       | 84 ++++++++++++++++++++++++++
+ .flag-cleanup/fsops_tmp_override.snapshot.json | 56 +++++++++++++++++
+ .flag-cleanup/fsops_tmp_perm.snapshot.json     | 56 +++++++++++++++++
+ .flag-cleanup/new_checkout.snapshot.json       | 56 +++++++++++++++++
+ .flag-cleanup/old_banner.snapshot.json         | 56 +++++++++++++++++
+ src/banner.js                                  | 12 +---
+ src/banner_text.py                             |  8 +--
+ test/shop.test.js                              |  4 +-
+ 9 files changed, 369 insertions(+), 16 deletions(-)
+ create mode 100644 .flag-cleanup/evidence.md
+ create mode 100644 .flag-cleanup/fsops_tmp_mv.snapshot.json
+ create mode 100644 .flag-cleanup/fsops_tmp_override.snapshot.json
+ create mode 100644 .flag-cleanup/fsops_tmp_perm.snapshot.json
+ create mode 100644 .flag-cleanup/new_checkout.snapshot.json
+ create mode 100644 .flag-cleanup/old_banner.snapshot.json
+```
+
+### $ gh pr view 1 --json state,mergedAt
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 887 ms)
+```n{"mergedAt":"2026-11-26T09:04:07Z","state":"MERGED"}
+```
+
+Merged: {"mergedAt":"2026-11-26T09:04:07Z","state":"MERGED"}
+
+## Step 8 - Resume after merge: re-check every gate against live state
+
+### $ git pull -q origin main
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 2141 ms)
+```n
+```
+
+### $ git log --oneline -2
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 71 ms)
+```n284a08c Remove old_banner flag and winter-sale banner (#1)
+5a86c7b Demo shop with two flag-gated features
+```
+
+### $ dir /b .flag-cleanup
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 34 ms)
+```nevidence.md
+fsops_tmp_mv.snapshot.json
+fsops_tmp_override.snapshot.json
+fsops_tmp_perm.snapshot.json
+new_checkout.snapshot.json
+old_banner.snapshot.json
+```
+
+### $ gh pr view 1 --json state,mergedAt
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 806 ms)
+```n{"mergedAt":"2026-11-26T09:04:07Z","state":"MERGED"}
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\find_refs.py --repo . --flag old_banner --summary
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 227 ms)
+```nfiles searched: 5
+old_banner: sdk_calls=0 other_literals=0
+dynamic call sites: 0
+unsearched languages: none
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\snapshot.py verify --file .flag-cleanup\old_banner.snapshot.json
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 2584 ms)
+```nMATCHES snapshot
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\snapshot.py verify --file .flag-cleanup\old_banner.snapshot.json
+(exit: 0)
+```nMATCHES snapshot
+```
+
+Gate summary: PR merged; 0 references on main; snapshot MATCHES; overrides none (has_overrides=false); other usage: operator confirmed none.
+
+## Step 9 - Archive (separate approval)
+Archive flag `old_banner`?
+- PR #1 is merged. No references remain on main in: this repo.
+- You confirmed no other service uses it: yes (operator).
+- Environments: Production=on, Development=on.
+- Command: flagsmith feature update old_banner --archive --yes
+- Restore: flagsmith feature update old_banner --unarchive --yes
+Archive? -> APPROVED (validation brief; operator).
+### $ python .kiro\skills\flag-cleanup\scripts\cli.py run -- feature update old_banner --archive --yes
+(exit: 0)
+```n{
+  "id": 305074,
+  "name": "old_banner",
+  "description": "Demo: finished winter-sale banner (cleanup drill)",
+  "type": "standard",
+  "default_value": null,
+  "enabled": false
+}
+```
+
+### Verify archive
+```n# api ...?is_archived=true (exit 0)
+[{"is_archived":true,"name":"old_banner"}]
+# evaluate old_banner --identity cleanup-check -e Production (exit 0)
+{
+  "name": "old_banner",
+  "enabled": true,
+  "value": null,
+  "reason": "STATIC"
+}
+```
+
+## Step 10 - Report
+Meter (CLI calls through the skill wrapper for the whole cleanup run): {"calls": 37, "failed": 4, "output_bytes": 8800, "total_ms": 32842}
+Outcome: COMPLETED for old_banner (PR merged, flag archived, archive verified). Other 4 candidates untouched: 1 REFUSE, 3 APPROVAL REQUIRED.
+
+## After the workflow (operator housekeeping, not a skill step)
+Unarchived old_banner so the demo stays reusable. `feature update old_banner --unarchive --yes` exit 0. `snapshot.py verify`: MATCHES snapshot

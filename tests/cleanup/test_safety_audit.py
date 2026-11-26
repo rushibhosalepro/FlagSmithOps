@@ -346,5 +346,9 @@ class OutputFolderTest(unittest.TestCase):
             self.assertEqual(evidence.main(["--input", src, "--out", target]), 0)
         self.assertTrue(os.path.isfile(target))
 
+class MeterIsolationTest(unittest.TestCase):
+    def test_the_suite_never_writes_to_a_meter_set_outside_the_tests(self):
+        self.assertIn("fsops-test-meter-", os.environ["FSOPS_METER_FILE"])
+
 if __name__ == "__main__":
     unittest.main()
