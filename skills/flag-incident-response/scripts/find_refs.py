@@ -19,7 +19,9 @@ import sys
 
 SUPPORTED = {".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".py"}
 UNSUPPORTED = {".go", ".java", ".kt", ".rb", ".php", ".cs", ".swift", ".dart", ".rs", ".scala", ".ex", ".exs"}
-SKIP_DIRS = {".git", "node_modules", "venv", ".venv", "dist", "build", "__pycache__", ".next", ".fsops", "vendor"}
+# Agent tooling folders hold installed skills and their scripts, not application code.
+SKIP_DIRS = {".git", "node_modules", "venv", ".venv", "dist", "build", "__pycache__", ".next", ".fsops", "vendor",
+             ".kiro", ".agents", ".claude", ".cursor", ".flag-cleanup"}
 MAX_BYTES = 1_000_000
 
 CALL_RE = re.compile(

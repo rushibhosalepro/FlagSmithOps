@@ -153,3 +153,68 @@ FileNotFoundError: [Errno 2] No such file or directory: '.flag-cleanup\\fsops_tm
          ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 FileNotFoundError: [Errno 2] No such file or directory: '.flag-cleanup\\fsops_tmp_override.snapshot.json'
 ```
+
+**FAILED (bug found):** snapshot.py crashed with FileNotFoundError because .flag-cleanup/ did not exist (SKILL.md tells the agent to write there). Read-only, so no Flagsmith state was affected. Fixed in 8de35df (snapshot.py and evidence.py now create the folder). Installed skills refreshed with 'npx skills update'. Re-running step 2.
+
+### $ python .kiro\skills\flag-cleanup\scripts\snapshot.py capture --flag new_checkout --env Production --env Development --known-envs Production,Development --out .flag-cleanup\new_checkout.snapshot.json
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 2490 ms)
+```nsaved .flag-cleanup\new_checkout.snapshot.json
+  Production: enabled=True segment_overrides=0 identity_overrides=0 lifecycle_stage=new
+  Development: enabled=False segment_overrides=0 identity_overrides=0 lifecycle_stage=new
+  has_overrides=False environments_complete=True
+  note: Override counts come from the CLI (segment_overrides, identity_overrides). The overrides themselves were not captured and are never restored.
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\snapshot.py capture --flag old_banner --env Production --env Development --known-envs Production,Development --out .flag-cleanup\old_banner.snapshot.json
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 1764 ms)
+```nsaved .flag-cleanup\old_banner.snapshot.json
+  Production: enabled=True segment_overrides=0 identity_overrides=0 lifecycle_stage=new
+  Development: enabled=True segment_overrides=0 identity_overrides=0 lifecycle_stage=new
+  has_overrides=False environments_complete=True
+  note: Override counts come from the CLI (segment_overrides, identity_overrides). The overrides themselves were not captured and are never restored.
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\snapshot.py capture --flag fsops_tmp_perm --env Production --env Development --known-envs Production,Development --out .flag-cleanup\fsops_tmp_perm.snapshot.json
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 1872 ms)
+```nsaved .flag-cleanup\fsops_tmp_perm.snapshot.json
+  Production: enabled=True segment_overrides=0 identity_overrides=0 lifecycle_stage=permanent
+  Development: enabled=True segment_overrides=0 identity_overrides=0 lifecycle_stage=permanent
+  has_overrides=False environments_complete=True
+  note: Override counts come from the CLI (segment_overrides, identity_overrides). The overrides themselves were not captured and are never restored.
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\snapshot.py capture --flag fsops_tmp_mv --env Production --env Development --known-envs Production,Development --out .flag-cleanup\fsops_tmp_mv.snapshot.json
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 3028 ms)
+```nsaved .flag-cleanup\fsops_tmp_mv.snapshot.json
+  Production: enabled=True segment_overrides=0 identity_overrides=0 lifecycle_stage=new
+  Development: enabled=True segment_overrides=0 identity_overrides=0 lifecycle_stage=new
+  has_overrides=False environments_complete=True
+  note: Override counts come from the CLI (segment_overrides, identity_overrides). The overrides themselves were not captured and are never restored.
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\snapshot.py capture --flag fsops_tmp_override --env Production --env Development --known-envs Production,Development --out .flag-cleanup\fsops_tmp_override.snapshot.json
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 1807 ms)
+```nsaved .flag-cleanup\fsops_tmp_override.snapshot.json
+  Production: enabled=False segment_overrides=0 identity_overrides=1 lifecycle_stage=new
+  Development: enabled=True segment_overrides=0 identity_overrides=0 lifecycle_stage=new
+  has_overrides=True environments_complete=True
+  note: Override counts come from the CLI (segment_overrides, identity_overrides). The overrides themselves were not captured and are never restored.
+```
+
+### $ python .kiro\skills\flag-cleanup\scripts\find_refs.py --repo . --flag new_checkout --flag old_banner --flag fsops_tmp_perm --flag fsops_tmp_mv --flag fsops_tmp_override --summary
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 247 ms)
+```nfiles searched: 38
+new_checkout: sdk_calls=1 other_literals=2
+  fsops_demo_shop:src/checkout.js:3 [other_literal]
+  fsops_demo_shop:src/checkout.js:5 [other_literal]
+  fsops_demo_shop:src/checkout.js:26 [sdk_call]
+old_banner: sdk_calls=2 other_literals=1
+  fsops_demo_shop:src/banner.js:3 [other_literal]
+  fsops_demo_shop:src/banner.js:8 [sdk_call]
+  fsops_demo_shop:src/banner_text.py:5 [sdk_call]
+fsops_tmp_perm: sdk_calls=0 other_literals=0
+fsops_tmp_mv: sdk_calls=0 other_literals=0
+fsops_tmp_override: sdk_calls=0 other_literals=0
+dynamic call sites: 0
+unsearched languages: none
+```

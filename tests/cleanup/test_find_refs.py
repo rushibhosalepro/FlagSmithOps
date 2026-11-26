@@ -58,8 +58,19 @@ class FindRefsTest(unittest.TestCase):
         self.assertIn("unsearched languages: .go", text)
         self.assertLess(len(text), 1500)
 
-    def test_missing_repo_exits_with_error(self):
-        self.assertEqual(find_refs.main(["--repo", os.path.join(REPO, "nope"), "--flag", "x"]), 2)
+    def test_agent_tooling_folders_are_not_searched(self):
+        import tempfile
+        repo = tempfile.mkdtemp()
+        for rel in ("src/app.js", ".kiro/skills/x/scripts/s.py", ".agents/skills/x/s.py", ".claude/skills/x/s.py", ".flag-cleanup/n.py"):
+            path = os.path.join(repo, *rel.split("/"))
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write('hasFeature("tool_flag");\n')
+        result = find_refs.scan([repo], ["tool_flag"])
+        self.assertEqual(result["files_searched"], 1)
+        self.assertEqual(result["flags"]["tool_flag"]["summary"]["sdk_calls"], 1)
+
+    def test_missing_repo_exits_with_error(self):        self.assertEqual(find_refs.main(["--repo", os.path.join(REPO, "nope"), "--flag", "x"]), 2)
 
 
 if __name__ == "__main__":
