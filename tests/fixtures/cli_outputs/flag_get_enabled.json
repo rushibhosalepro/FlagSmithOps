@@ -1,1 +1,9 @@
-{"feature": {"name": "f"}, "enabled": true, "feature_state_value": "blue", "updated_at": "t1"}
+{
+    "feature":  {
+                    "name":  "f"
+                },
+    "enabled":  true,
+    "feature_state_value":  "blue",
+    "updated_at":  "t1",
+    "type":  "standard"
+}

@@ -30,6 +30,7 @@ def capture(flag, envs, segment_ids=(), runner=None, known_envs=None):
         "captured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "environments": {},
         "not_captured": sorted(set(known_envs or []) - set(envs)),
+        "environments_complete": None if known_envs is None else not (set(known_envs) - set(envs)),
         "notes": [],
     }
     for env in envs:
@@ -132,9 +133,16 @@ def enabled_state(raw):
     return value if found and isinstance(value, bool) else None
 
 
+def _is_standard(raw):
+    """The CLI reports type "standard" for a plain flag. Any other value, or none, is not safe to restore by value."""
+    return isinstance(raw, dict) and isinstance(raw.get("type"), str) and raw["type"].lower() == "standard"
+
+
 def _has_variants(raw):
     if not isinstance(raw, dict):
         return False
+    if isinstance(raw.get("type"), str) and raw["type"].lower() != "standard":
+        return True
     return any(("multivariate" in k.lower() or "variant" in k.lower()) and v for k, v in raw.items())
 
 
@@ -157,7 +165,9 @@ def restore_commands(snap, env):
     if counts.get("segment_overrides") or counts.get("identity_overrides"):
         notes.append("%s segment and %s identity override(s) exist in %s. They are not restored." % (counts.get("segment_overrides") or 0, counts.get("identity_overrides") or 0, env))
     if _has_variants(raw):
-        notes.append("This flag appears to be multivariate. Its value was not restored.")
+        notes.append("This flag appears to be multivariate or of another type. Its value was not restored.")
+    elif not _is_standard(raw):
+        notes.append("The flag type is missing or not 'standard', so its value was not restored.")
     else:
         found, value = _top(raw, ["feature_state_value", "value"])
         if found and value is not None and not isinstance(value, (dict, list)):
@@ -200,7 +210,7 @@ def main(argv=None):
                 shown = lambda v: "unknown" if v is None else v  # noqa: E731
                 print("  %s: enabled=%s segment_overrides=%s identity_overrides=%s lifecycle_stage=%s"
                       % (env, shown(s["enabled"]), shown(s["segment_overrides"]), shown(s["identity_overrides"]), shown(s["lifecycle_stage"])))
-            print("  has_overrides=%s" % ("unknown" if snap["has_overrides"] is None else snap["has_overrides"]))
+            print("  has_overrides=%s environments_complete=%s" % ("unknown" if snap["has_overrides"] is None else snap["has_overrides"], "unknown" if snap["environments_complete"] is None else snap["environments_complete"]))
             if snap["not_captured"]:
                 print("  WARNING: not captured: " + ", ".join(snap["not_captured"]))
             for note in snap["notes"]:

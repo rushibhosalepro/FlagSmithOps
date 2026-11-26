@@ -9,7 +9,9 @@ import verdict
 
 BASE = {
     "flag": "obsolete_flag",
-    "tags": ["Stale"],
+    "archived": False,
+    "tags": [{"label": "cleanup-candidate", "is_permanent": False}],
+    "environments_complete": True,
     "stale": True,
     "multivariate": False,
     "evidence": {"state_read": True, "code_searched": True},
@@ -133,7 +135,7 @@ class VerdictTest(unittest.TestCase):
     def test_missing_code_search_results_are_not_zero_references(self):
         r = make(references=None)
         self.assertEqual(r["verdict"], "APPROVAL REQUIRED")
-        self.assertIn("code search results not provided", r["reasons"])
+        self.assertIn("code search results missing or incomplete", r["reasons"])
 
     def test_unread_tags_cannot_proceed(self):
         r = make(tags=None)

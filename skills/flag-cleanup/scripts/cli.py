@@ -44,12 +44,61 @@ def _meter(path, record):
         handle.write(json.dumps(record) + "\n")
 
 
+_VALUE_FLAGS = {"-e", "--environment", "-p", "--project", "--organisation", "--api-url", "-c",
+                "--config-path", "--jq", "--sdk-api-url"}
+
+
+def _command_words(args):
+    """The subcommand words (for example ['feature', 'delete', 'x']), skipping flags and their values."""
+    words, skip = [], False
+    for arg in (str(a) for a in args):
+        if skip:
+            skip = False
+        elif arg in _VALUE_FLAGS:
+            skip = True
+        elif not arg.startswith("-"):
+            words.append(arg)
+    return words
+
+
+def blocked_reason(args):
+    """Why this call is never allowed, or None. FlagSmithOps never deletes, and `api` is read-only.
+
+    This guards calls made through this wrapper. It cannot stop an agent that runs `flagsmith` directly,
+    so the skills tell the agent to use this wrapper for every CLI call.
+    """
+    args = [str(a) for a in args]
+    words = _command_words(args)
+    if len(words) >= 2 and words[1] == "delete":
+        return "'%s delete' is not allowed. FlagSmithOps archives and never deletes." % words[0]
+    if words and words[0] == "api":
+        method = None
+        for i, arg in enumerate(args):
+            if arg in ("-X", "--method"):
+                method = args[i + 1] if i + 1 < len(args) else ""
+            elif arg.startswith("--method="):
+                method = arg.split("=", 1)[1]
+            elif arg.startswith("-X") and len(arg) > 2:
+                method = arg[2:]
+        if method is not None and method.upper() != "GET":
+            return "'api' is read-only here. Method %s is not allowed." % (method or "(empty)")
+        for arg in args:
+            if arg in ("-F", "--field", "-f", "--raw-field", "--input") or arg.startswith(("--field=", "--raw-field=", "--input=")):
+                return "'api' is read-only here. Sending a request body is not allowed."
+    return None
+
+
 def run(args, binary=None, meter_file=None, expect_json=True, timeout=120):
     """Run `flagsmith <args>`. Returns parsed JSON (or text when expect_json is False).
 
     Always adds --no-input. Adds --json when expect_json and neither --json nor --jq is given.
     Raises CliError on a non-zero exit, a timeout, or output that is not JSON.
     """
+    reason = blocked_reason(args)
+    if reason:
+        _meter(meter_file or os.environ.get("FSOPS_METER_FILE", DEFAULT_METER),
+               {"args": [redact(str(a)) for a in args], "exit": -1, "bytes": 0, "ms": 0, "blocked": True})
+        raise CliError("blocked by FlagSmithOps: " + reason, args)
     cmd = list(binary or ["flagsmith"]) + [str(a) for a in args]
     if "--no-input" not in cmd:
         cmd.append("--no-input")
@@ -127,6 +176,6 @@ def main(argv=None):
         return 2
     return 0
 
-
+ 
 if __name__ == "__main__":
     sys.exit(main())
