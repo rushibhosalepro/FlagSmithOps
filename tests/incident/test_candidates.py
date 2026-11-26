@@ -120,6 +120,20 @@ class CandidatesTest(unittest.TestCase):
         out = candidates.rank(repo, ["checkout_v2"], ["checkout"], git=lambda *a: None)
         self.assertTrue(any("git history unavailable" in e for e in out["candidates"][0]["evidence"]))
 
+    def test_repository_folder_name_is_not_code_evidence(self):
+        # Found in the live run: repo folder "fsops_demo_shop" gave every referenced flag a code match for "fsops".
+        import shutil
+        base = tempfile.mkdtemp()
+        repo = os.path.join(base, "checkout-service")
+        shutil.copytree(make_repo({"src/a.js": 'hasFeature("dark_mode");\n'}), repo)
+        out = candidates.rank(repo, ["dark_mode"], ["checkout"])
+        self.assertEqual(out["candidates"], [])
+
+    def test_a_folder_inside_the_repo_still_counts(self):
+        repo = make_repo({"src/checkout/pay.js": 'hasFeature("dark_mode");\n'})
+        evidence = candidates.rank(repo, ["dark_mode"], ["checkout"])["candidates"][0]["evidence"]
+        self.assertTrue(any(e.startswith("code mentions: checkout") for e in evidence))
+
     def test_recent_change_alone_never_creates_a_candidate(self):
         repo = make_repo({"src/a.js": 'hasFeature("dark_mode");\n'})
         self.assertEqual(candidates.rank(repo, ["dark_mode"], ["payments"])["candidates"], [])

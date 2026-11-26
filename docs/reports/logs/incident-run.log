@@ -1,0 +1,113 @@
+# Incident workflow run (live)
+Date: 2026-11-26 14:53 local. CLI: flagsmith v2.0.0. Skill followed: .kiro/skills/flag-incident-response/SKILL.md (installed with npx). Executed by the same agent that wrote the skill (not an independent agent).
+Incident description given: "Checkout is failing in production for carts with a discount."
+
+## Step 0 - Preflight
+From the description: feature = checkout, symptom = failure on discount carts, environment = Production (named), project = testing. Affected identity for checks: affected-user (operator-supplied).
+
+### $ python .kiro\skills\flag-incident-response\scripts\cli.py run --text -- auth status
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 4541 ms)
+```nInstance               https://api.flagsmith.com
+Identity               rushibhosale84@gmail.com
+Organisations          hacakthon (42144)
+Credential source      keychain
+Access token [REDACTED]   Thu, 26 Nov 2026 15:09:00 IST
+```
+
+### $ python .kiro\skills\flag-incident-response\scripts\cli.py run -- flag get new_checkout -e Production --jq "keys"
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 1336 ms)
+```n["code_references","description","enabled","feature","identity_overrides","lifecycle_stage","segment_overrides","type","value"]
+```
+
+## Step 1 - Find candidates
+### $ python .kiro\skills\flag-incident-response\scripts\cli.py run -- feature list --jq ".[].name" > .fsops\flags.txt
+```nnew_checkout
+old_banner
+fsops_tmp_perm
+fsops_tmp_mv
+fsops_tmp_override
+```
+
+### $ python .kiro\skills\flag-incident-response\scripts\candidates.py --repo . --keyword checkout --keyword discount --flags-file .fsops\flags.txt
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 614 ms)
+```n{
+  "candidates": [
+    {
+      "flag": "new_checkout",
+      "score": 6,
+      "evidence_kinds": 3,
+      "evidence": [
+        "name contains: checkout",
+        "code mentions: checkout (3 reference(s))",
+        "2 commit(s) in the last 30 days touch the flag name"
+      ]
+    }
+  ],
+  "clear_winner": true,
+  "winner": "new_checkout",
+  "top_candidate": "new_checkout",
+  "coverage_gaps": [],
+  "confirm_with_user": true,
+  "flags_checked": 5,
+  "dynamic_call_sites": 0,
+  "unsearched_languages": []
+}
+```
+
+### Side scenario - ambiguity on real data (vague description "the fsops thing is broken")
+
+### $ python .kiro\skills\flag-incident-response\scripts\candidates.py --repo . --keyword fsops --flags-file .fsops\flags.txt
+(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 556 ms)
+```n{
+  "candidates": [
+    {
+      "flag": "fsops_tmp_mv",
+      "score": 4,
+      "evidence_kinds": 2,
+      "evidence": [
+        "name contains: fsops",
+        "1 commit(s) in the last 30 days touch the flag name"
+      ]
+    },
+    {
+      "flag": "fsops_tmp_override",
+      "score": 4,
+      "evidence_kinds": 2,
+      "evidence": [
+        "name contains: fsops",
+        "1 commit(s) in the last 30 days touch the flag name"
+      ]
+    },
+    {
+      "flag": "fsops_tmp_perm",
+      "score": 4,
+      "evidence_kinds": 2,
+      "evidence": [
+        "name contains: fsops",
+        "1 commit(s) in the last 30 days touch the flag name"
+      ]
+    },
+    {
+      "flag": "new_checkout",
+      "score": 3,
+      "evidence_kinds": 2,
+      "evidence": [
+        "code mentions: fsops (3 reference(s))",
+        "2 commit(s) in the last 30 days touch the flag name"
+      ]
+    }
+  ],
+  "clear_winner": false,
+  "winner": null,
+  "top_candidate": "fsops_tmp_mv",
+  "coverage_gaps": [],
+  "confirm_with_user": true,
+  "flags_checked": 5,
+  "dynamic_call_sites": 0,
+  "unsearched_languages": []
+}
+```
+Result: 3 candidates on name only, clear_winner=false, winner=null -> the skill must stop and ask. No write.
+
+## Step 2 - Resolve
+clear_winner=true for new_checkout, but confirm_with_user=true. Shown to the operator: flag new_checkout, evidence: name + 3 code references in src/checkout.js + 2 recent commits. Operator CONFIRMED new_checkout.

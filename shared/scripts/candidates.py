@@ -42,7 +42,9 @@ def recent_commits(repo, flag, since_days):
 
 def _context(ref, flags):
     """Reference text with every flag name removed, so a flag's own name never counts as code evidence."""
-    text = ref["file"] + " " + ref["text"]
+    # ref["file"] is "<repo folder>:<path>". The repo folder name is not evidence about any flag, so drop it.
+    path = ref["file"].split(":", 1)[1] if ":" in ref["file"] else ref["file"]
+    text = path + " " + ref["text"]
     for name in sorted(flags, key=len, reverse=True):
         text = text.replace(name, " ")
     return text.lower()
