@@ -1,27 +1,109 @@
 # FlagSmithOps
 
-Two Agent Skills that guide a coding agent through complete Flagsmith jobs with the Flagsmith CLI. Built for Toggle Wars (WeMakeDevs x Flagsmith), Track 04: Flagsmith Agent Skills.
+Two Agent Skills that guide a coding agent through complete [Flagsmith](https://www.flagsmith.com) jobs with the Flagsmith CLI.
 
-| Skill | Job |
+| Skill | What it does |
 |---|---|
-| `flag-cleanup` | Find obsolete flags, remove their code, open a PR, archive the flags after the PR merges. |
-| `flag-incident-response` | Trace a broken feature to its flag, disable it after approval, verify, and restore on request. |
+| [`flag-cleanup`](skills/flag-cleanup) | Finds obsolete flags, removes their code in a pull request, and archives the flags after the PR merges. |
+| [`flag-incident-response`](skills/flag-incident-response) | Traces a broken feature to its flag, disables it in one environment after you approve, checks the effect for specific users, and restores on request. |
 
-Both skills follow one safety contract: PROCEED, APPROVAL REQUIRED or REFUSE, approval for every Flagsmith write, original state captured, flags archived and never deleted, and an evidence report for every run.
+Both skills follow one safety contract. Every Flagsmith write needs your explicit approval for that exact action. Missing information is never treated as safe. Flags are archived, never deleted. The original state is captured first, and every run produces an evidence report.
 
-Status: both skills are drafted and their scripts pass unit tests against a fake CLI (`python -m unittest discover -s tests\cleanup` and `-s tests\incident`). Nothing has been run against a live Flagsmith project yet, so CLI field names, archive behaviour and restore fidelity are unverified. See `skills/*/references/cli-fields.md`.
+## Requirements
+- A coding agent that supports [Agent Skills](https://agentskills.io) (for example Kiro or Claude Code).
+- [Flagsmith CLI](https://docs.flagsmith.com/integrating-with-flagsmith/CLI) v2 or later. Changing flags needs Flagsmith 2.263.0 or newer.
+- Python 3 (standard library only).
+- `git`, and the [`gh` CLI](https://cli.github.com) for `flag-cleanup`.
 
-After editing anything in `shared/scripts/`, run `python shared/sync.py` to copy it into the skills, and `python shared/validate_skill.py skills/<name>` to check the skill format.
+## Install
 
-## Where things are
-- `.kiro/steering/`: product, safety contract, technical context, hackathon rules, structure.
-- `.kiro/specs/flagsmithops-project/`: shared requirements, design and tasks (start here).
-- `.kiro/specs/flag-cleanup/` and `flag-incident-response/`: skill requirements. Design and tasks follow the spike.
-- `docs/spike-results.md`: what the CLI really does. Fill this in first.
-- `benchmarks/methodology.md`: how token and time results are measured.
+### 1. Install the Flagsmith CLI and log in
+```
+# macOS / Linux
+brew install Flagsmith/tap/flagsmith        # or: curl -fsSL https://get.flagsmith.com | sh
 
-## Next step
-Run the Phase 0 spike (`.kiro/specs/flagsmithops-project/tasks.md`) against a non-production Flagsmith Cloud project, then update the specs from `docs/spike-results.md`.
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/Flagsmith/flagsmith-cli/main/install.ps1 | iex
+```
+Then run `flagsmith login`, or in CI set `FLAGSMITH_API_KEY`. Check with `flagsmith auth status`.
 
-## Setup, usage and Flagsmith usage
-To be written in Phase 6, from what is built and tested.
+### 2. Get the skills
+```
+git clone <this-repository-url>
+cd FlagSmithOps
+```
+
+### 3. Copy the skill folders into your agent
+Each skill folder is self-contained. Copy the whole folder. You do not need the rest of the repository.
+
+**Kiro**, for one project, copy into `.kiro/skills/`:
+```
+# macOS / Linux
+mkdir -p .kiro/skills && cp -r skills/flag-cleanup skills/flag-incident-response .kiro/skills/
+
+# Windows (PowerShell)
+New-Item -ItemType Directory -Force .kiro\skills | Out-Null
+Copy-Item -Recurse skills\flag-cleanup, skills\flag-incident-response .kiro\skills\
+```
+For all projects, copy into `~/.kiro/skills/` instead. You can also use Kiro's Agent Steering & Skills panel: **+ > Import a skill > Import skill from a folder**.
+
+**Claude Code**, for one project, copy into `.claude/skills/`. For all projects, copy into `~/.claude/skills/`:
+```
+# macOS / Linux
+mkdir -p ~/.claude/skills && cp -r skills/flag-cleanup skills/flag-incident-response ~/.claude/skills/
+
+# Windows (PowerShell)
+New-Item -ItemType Directory -Force $HOME\.claude\skills | Out-Null
+Copy-Item -Recurse skills\flag-cleanup, skills\flag-incident-response $HOME\.claude\skills\
+```
+
+**Other agents:** copy the two folders into that agent's skills directory. See its documentation.
+
+### 4. Check it loaded
+Start a new agent session and type `/`. You should see `flag-cleanup` and `flag-incident-response`. The agent also loads a skill on its own when your request matches its description.
+
+## Use
+
+Say what you want. The skill asks for what it needs (project, environments, which one is production, repositories to search).
+
+```
+Clean up the obsolete feature flags in this repo.
+```
+```
+Checkout is failing in production. I think it is behind a feature flag. Find it and turn it off.
+```
+You can also invoke a skill directly: `/flag-cleanup` or `/flag-incident-response`.
+
+**What to expect**
+- `flag-cleanup` shows a table: each flag, its verdict (PROCEED, APPROVAL REQUIRED or REFUSE), and why. It asks which code path to keep, then asks before opening the PR. After the PR merges, run it again. It re-checks live state and asks before archiving each flag.
+- `flag-incident-response` shows the flag it found and the evidence. It stops and asks if several flags could be responsible. It shows the exact change and the restore command before it disables anything, then reports what the flag resolves to for the users you name.
+
+Evidence reports are written to `evidence.md` (incident) and `.flag-cleanup/` (cleanup). They never contain credentials.
+
+## Limits you should know
+- Code search covers JavaScript, TypeScript and Python. Other languages are reported as not searched.
+- The skills cannot see other repositories or services. Before archiving a flag, `flag-cleanup` asks you to confirm nothing else uses it.
+- Restore covers the environment default only. Segment and identity overrides are reported, never changed.
+- A successful CLI command does not prove an incident is over. The incident skill checks specific users and asks you to confirm the symptom is gone.
+- Change requests and scheduled changes (paid Flagsmith plans) are not supported.
+
+## Status
+The scripts pass unit tests against a fake CLI. The skills have not yet been run against a live Flagsmith project, so some CLI details are unverified. They are listed in `skills/*/references/cli-fields.md`. The skills tell the agent to check them on first use.
+
+## Develop
+```
+python -m unittest discover -s tests/cleanup
+python -m unittest discover -s tests/incident
+python shared/sync.py                                   # copy shared/scripts into each skill
+python shared/validate_skill.py skills/flag-cleanup     # check the Agent Skills format
+```
+Edit scripts in `shared/scripts/`, then run `sync.py`. On macOS and Linux use `python3` if `python` is not available.
+
+## Layout
+```
+skills/        the two skills (SKILL.md, scripts/, references/)
+shared/        shared scripts, evidence template, safety contract, sync and validation
+tests/         unit tests, fixtures
+benchmarks/    benchmark method and results
+docs/          notes on what the CLI actually does
+```
