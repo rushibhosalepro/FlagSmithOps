@@ -39,7 +39,7 @@ Find the flag behind a broken feature, switch it off safely, prove what changed,
 
 **8. Restore (when asked).** Ask for approval. Run the restore commands (they include `--yes`). Confirm with `python scripts/snapshot.py verify --file .fsops/NAME.snapshot.json`. Report if the state differs. Restore covers the environment default only (enabled state and a simple value). Variants, weights and overrides are not restored. Report any difference `verify` finds.
 
-**9. Evidence.** Write the run to `.fsops/run.json` and run `python scripts/evidence.py --input .fsops/run.json --out evidence.md`. Include candidates, the action or the refusal, the verification result, the restore command and anything not verified. Run `python scripts/cli.py meter` and report calls and output size.
+**9. Evidence.** Always do this after a mitigation, a restore or a refusal. It is a local file, so it needs no approval. Write the run to `.fsops/run.json` and run `python scripts/evidence.py --input .fsops/run.json --out evidence.md`. Include candidates, the action or the refusal, the verification result, the restore command and anything not verified. Run `python scripts/cli.py meter` and report calls and output size.
 
 ## Output
 Be brief. During an incident the user is under pressure. Lead with the decision needed, then the evidence. No raw JSON.

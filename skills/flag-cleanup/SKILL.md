@@ -48,7 +48,7 @@ Take a flag from "probably obsolete" to "code removed, PR merged, flag archived"
 
 **9. Archive.** After approval for each flag: `python scripts/cli.py run -- feature update NAME --archive --yes` (the CLI requires `--yes` when it cannot prompt, so pass it only after approval). Confirm with `api /api/v1/projects/ID/features/ --jq` that `is_archived` is true. Then run `python scripts/cli.py run -- evaluate NAME --identity cleanup-check -e ENV` and report what you see. Observed so far: an archived flag still evaluates with its previous state, so apps that still read it keep working. Restore: `flagsmith feature update NAME --unarchive --yes`.
 
-**10. Report.** Update the evidence report. Run `python scripts/cli.py meter` and give the user the call count and output size. State anything you could not verify.
+**10. Report.** Update the evidence report (local file, no approval needed; do it after every archive or refusal). Run `python scripts/cli.py meter` and give the user the call count and output size. State anything you could not verify.
 
 ## Output
 Be brief. Use compact tables. Never paste raw JSON from the CLI.
