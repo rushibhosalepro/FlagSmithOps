@@ -26,4 +26,4 @@ If tags come back as ids, resolve them to names before applying the permanent-ta
 Staleness comes from the `Stale` tag or from the user. Whether the tag appears in CLI output is unverified. Pass `stale: null` when it is not established.
 
 ## Overrides
-The CLI reads overrides only per segment or identity id. `snapshot.py capture` records them only when given `--segment-ids`. Otherwise pass `has_overrides: null`, and the report lists it as not checked.
+The CLI reads overrides only per segment or identity id. `snapshot.py capture` records them only when given `--segment-ids`. Otherwise pass `has_overrides: null`. The verdict is then APPROVAL REQUIRED, and the archive stays blocked until overrides are checked or the user explicitly accepts the risk (`user.accept_unchecked_overrides`). The report lists them as not checked either way.

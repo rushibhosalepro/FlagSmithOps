@@ -9,7 +9,8 @@ Input: a JSON object or list of objects. Fields (all optional unless noted):
   environments {name: {enabled: bool}}, production_environment,
   has_overrides (true/false/null),
   references {sdk_calls, other_literals, dynamic_call_sites, unsearched_languages[]},
-  user {kept_behavior: "on"|"off"|<variant name>|null, other_usage: "none"|"unknown"|"in_use"}
+  user {kept_behavior: "on"|"off"|<variant name>|null, other_usage: "none"|"unknown"|"in_use",
+        accept_unchecked_overrides: true to accept unknown overrides explicitly}
 
 PROCEED means eligible to be presented for approval. It never skips approval for a Flagsmith write.
 
@@ -40,6 +41,8 @@ def decide(c):
 
     if c.get("tags") is None and not c.get("permanent"):
         approval.append("tags not read, so permanent status is unknown")
+    if c.get("references") is None:
+        approval.append("code search results not provided")
     if c.get("stale") is not True:
         approval.append("staleness not established" if c.get("stale") is None else "changed within the stale period")
     if refs.get("dynamic_call_sites", 0) > 0:
@@ -52,6 +55,9 @@ def decide(c):
         approval.append("segment or identity overrides exist")
     elif c.get("has_overrides") is None:
         unverified.append("segment and identity overrides not checked")
+        if not user.get("accept_unchecked_overrides"):
+            approval.append("overrides not checked; check them or explicitly accept the risk")
+            questions.append("Overrides for '%s' were not checked. Check them, or accept that they are unknown?" % c.get("flag"))
 
     envs = c.get("environments") or {}
     prod = c.get("production_environment")
@@ -59,21 +65,27 @@ def decide(c):
     if prod not in envs:
         approval.append("production environment not identified")
     else:
-        states = {name: bool(v.get("enabled")) for name, v in envs.items()}
+        raw = {name: (v or {}).get("enabled") for name, v in envs.items()}
+        unknown = sorted(n for n, s in raw.items() if not isinstance(s, bool))
+        if unknown:
+            approval.append("enabled state unknown for: " + ", ".join(unknown))
+        states = {n: s for n, s in raw.items() if isinstance(s, bool)}
         if len(set(states.values())) > 1:
             approval.append("environments differ: " + ", ".join("%s=%s" % (n, "on" if s else "off") for n, s in sorted(states.items())))
-        prod_state = "on" if states[prod] else "off"
         if c.get("multivariate"):
             if not kept:
                 approval.append("multivariate flag: variant to keep not named")
                 questions.append("Which variant should the code keep for '%s'?" % c.get("flag"))
-        elif kept is None:
-            approval.append("production is %s; kept behaviour not confirmed" % prod_state)
-            questions.append("'%s' is %s in %s. Keep the %s code path?" % (c.get("flag"), prod_state, prod, prod_state))
-        elif kept != prod_state:
-            approval.append("kept behaviour '%s' differs from production '%s'" % (kept, prod_state))
-
+        elif prod in states:
+            prod_state = "on" if states[prod] else "off"
+            if kept is None:
+                approval.append("production is %s; kept behaviour not confirmed" % prod_state)
+                questions.append("'%s' is %s in %s. Keep the %s code path?" % (c.get("flag"), prod_state, prod, prod_state))
+            elif kept != prod_state:
+                approval.append("kept behaviour '%s' differs from production '%s'" % (kept, prod_state))
     gate = ["PR merged", "no references remain on the default branch of each repository searched", "flag state still matches the snapshot"]
+    if c.get("has_overrides") is not False:
+        gate.append("overrides checked, or the risk explicitly accepted")
     if user.get("other_usage") != "none":
         gate.append("user confirms no other repository, service or client uses the flag")
         unverified.append("usage outside the searched repositories not confirmed")

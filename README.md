@@ -90,7 +90,8 @@ Evidence reports are written to `evidence.md` (incident) and `.flag-cleanup/` (c
 ## Limits you should know
 - Code search covers JavaScript, TypeScript and Python. Other languages are reported as not searched.
 - The skills cannot see other repositories or services. Before archiving a flag, `flag-cleanup` asks you to confirm nothing else uses it.
-- Restore covers the environment default only. Segment and identity overrides are reported, never changed.
+- Restore covers the environment default only (enabled state and a simple value). Multivariate variants and weights are not restored, and segment and identity overrides are reported but never changed. Snapshot verification shows any difference.
+- Unknown is never treated as safe. If a flag's state, tags, overrides or code search results are missing, the skill asks you instead of proceeding.
 - A successful CLI command does not prove an incident is over. The incident skill checks specific users and asks you to confirm the symptom is gone.
 - Change requests and scheduled changes (paid Flagsmith plans) are not supported.
 

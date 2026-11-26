@@ -35,7 +35,7 @@ Find the flag behind a broken feature, switch it off safely, prove what changed,
 
 **7. Verify.** Run `python scripts/check_effect.py --flag NAME --identity AFFECTED [--identity OVERRIDE_USER]`. Include an identity covered by each override you know of. If the result is PARTIAL, say the mitigation is partial and name who still sees the feature. Then ask the user to confirm the symptom is gone. You cannot see that from the CLI.
 
-**8. Restore (when asked).** Ask for approval. Run the restore commands. Confirm with `python scripts/snapshot.py verify --file .fsops/NAME.snapshot.json`. Report if the state differs. Restore covers the environment default only. Overrides are reported, never changed.
+**8. Restore (when asked).** Ask for approval. Run the restore commands. Confirm with `python scripts/snapshot.py verify --file .fsops/NAME.snapshot.json`. Report if the state differs. Restore covers the environment default only (enabled state and a simple value). Variants, weights and overrides are not restored. Report any difference `verify` finds.
 
 **9. Evidence.** Write the run to `.fsops/run.json` and run `python scripts/evidence.py --input .fsops/run.json --out evidence.md`. Include candidates, the action or the refusal, the verification result, the restore command and anything not verified. Run `python scripts/cli.py meter` and report calls and output size.
 

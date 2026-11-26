@@ -85,11 +85,53 @@ class VerdictTest(unittest.TestCase):
     def test_kept_behaviour_must_match_production(self):
         self.assertEqual(make(user={"kept_behavior": "off"})["verdict"], "APPROVAL REQUIRED")
 
-    def test_overrides_true_needs_approval_and_none_is_unverified(self):
+    def test_overrides_true_needs_approval(self):
         self.assertEqual(make(has_overrides=True)["verdict"], "APPROVAL REQUIRED")
+
+    def test_unknown_overrides_do_not_proceed(self):
         r = make(has_overrides=None)
+        self.assertEqual(r["verdict"], "APPROVAL REQUIRED")
+        self.assertIn("segment and identity overrides not checked", r["unverified"])
+        self.assertTrue(any("Overrides" in q for q in r["questions"]))
+        self.assertTrue(any("overrides checked" in g for g in r["archive_gate"]))
+
+    def test_unknown_overrides_explicitly_accepted_can_proceed_but_stay_unverified(self):
+        r = make(has_overrides=None, user={"accept_unchecked_overrides": True})
         self.assertEqual(r["verdict"], "PROCEED")
         self.assertIn("segment and identity overrides not checked", r["unverified"])
+        self.assertTrue(any("overrides checked" in g for g in r["archive_gate"]))
+
+    def test_checked_overrides_add_no_archive_gate(self):
+        self.assertFalse(any("overrides checked" in g for g in make(has_overrides=False)["archive_gate"]))
+
+    def test_missing_enabled_state_is_not_treated_as_off(self):
+        r = make(environments={"production": {}, "staging": {"enabled": True}}, user={"kept_behavior": "off"})
+        self.assertEqual(r["verdict"], "APPROVAL REQUIRED")
+        self.assertTrue(any("enabled state unknown for: production" in x for x in r["reasons"]))
+        self.assertFalse(any("differs from production" in x for x in r["reasons"]))
+
+    def test_null_or_non_boolean_enabled_is_unknown(self):
+        for bad in (None, "true", 1, 0):
+            r = make(environments={"production": {"enabled": bad}})
+            self.assertEqual(r["verdict"], "APPROVAL REQUIRED", bad)
+            self.assertTrue(any("enabled state unknown" in x for x in r["reasons"]), bad)
+
+    def test_unknown_state_in_other_environment_blocks_proceed(self):
+        r = make(environments={"production": {"enabled": True}, "staging": {"enabled": None}})
+        self.assertEqual(r["verdict"], "APPROVAL REQUIRED")
+
+    def test_missing_state_never_creates_a_false_environment_difference(self):
+        r = make(environments={"production": {"enabled": False}, "staging": {}}, user={"kept_behavior": "off"})
+        self.assertFalse(any("environments differ" in x for x in r["reasons"]))
+
+    def test_missing_environment_value_object_is_unknown(self):
+        r = make(environments={"production": None})
+        self.assertEqual(r["verdict"], "APPROVAL REQUIRED")
+
+    def test_missing_code_search_results_are_not_zero_references(self):
+        r = make(references=None)
+        self.assertEqual(r["verdict"], "APPROVAL REQUIRED")
+        self.assertIn("code search results not provided", r["reasons"])
 
     def test_unread_tags_cannot_proceed(self):
         r = make(tags=None)

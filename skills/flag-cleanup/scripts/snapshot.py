@@ -95,7 +95,7 @@ def restore_commands(snap, env):
     """Commands that return the environment default to the snapshot. Best effort."""
     raw = snap["environments"][env]["default"]
     flag = snap["flag"]
-    cmds, notes = [], []
+    cmds, notes = [], ["Multivariate variants and weights are not restored by these commands. Run `snapshot.py verify` and compare."]
     found, enabled = _find(raw, ["enabled"])
     if found and isinstance(enabled, bool):
         cmds.append(["flagsmith", "flag", "enable" if enabled else "disable", flag, "--environment", env])

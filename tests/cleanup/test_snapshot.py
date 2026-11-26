@@ -45,6 +45,11 @@ class SnapshotTest(unittest.TestCase):
         self.assertEqual(off[0][:4], ["flagsmith", "flag", "disable", "f"])
         self.assertIn("--value", on[1])
 
+    def test_restore_always_warns_that_variants_and_weights_are_not_restored(self):
+        snap = snapshot.capture("f", ["production"], runner=fake_runner)
+        notes = snapshot.restore_commands(snap, "production")["notes"]
+        self.assertTrue(any("variants and weights are not restored" in n for n in notes))
+
     def test_restore_without_enabled_field_says_so(self):
         snap = {"flag": "f", "environments": {"production": {"default": {"weird": 1}}}}
         res = snapshot.restore_commands(snap, "production")

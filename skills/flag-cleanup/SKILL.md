@@ -30,6 +30,7 @@ Take a flag from "probably obsolete" to "code removed, PR merged, flag archived"
 - REFUSE: stop for that flag and explain why.
 - APPROVAL REQUIRED: resolve the reasons with the user. Do not guess.
 - PROCEED: eligible. Still present the plan for approval (step 5).
+- Unknown is not safe: an unreadable environment state, unchecked overrides, missing tags or missing search results never produce PROCEED. Ask the user to resolve them, or to accept the risk explicitly.
 
 **5. Plan and approve.** Show: flags, files and lines to change, which path is kept, the tests you will run, and the rollback. Wait for a clear yes (`references/approvals.md`).
 
