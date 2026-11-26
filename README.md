@@ -27,15 +27,22 @@ irm https://raw.githubusercontent.com/Flagsmith/flagsmith-cli/main/install.ps1 |
 ```
 Then run `flagsmith login`, or in CI set `FLAGSMITH_API_KEY`. Check with `flagsmith auth status`.
 
-### 2. Get the skills
+### 2. Install the skills with npx
+Needs Node.js 22.20 or later, and this repository published on GitHub. Replace `<owner>/<repo>` with its GitHub path.
 ```
-git clone <this-repository-url>
-cd FlagSmithOps
+# both skills, then pick your agents
+npx skills add <owner>/<repo>
+
+# one skill, one agent
+npx skills add <owner>/<repo> --skill flag-cleanup -a kiro-cli
+npx skills add <owner>/<repo> --skill flag-incident-response -a claude-code
 ```
+Skills install into the current project. Add `-g` to install for all projects. `kiro-cli` installs to `.kiro/skills/`, which Kiro IDE also reads. Other agent names (`cursor`, `codex`, `github-copilot` and more) are listed in the [`skills` CLI docs](https://github.com/vercel-labs/skills/blob/main/docs/agents.md).
 
-### 3. Copy the skill folders into your agent
-Each skill folder is self-contained. Copy the whole folder. You do not need the rest of the repository.
+Manage them later with `npx skills list`, `npx skills update` and `npx skills remove`. The `skills` CLI sends anonymous usage data. Set `DISABLE_TELEMETRY=1` to turn that off.
 
+### 3. Or copy the folders by hand
+Clone this repository, then copy the skill folders into your agent. Each skill folder is self-contained, so you do not need the rest of the repository.
 **Kiro**, for one project, copy into `.kiro/skills/`:
 ```
 # macOS / Linux
