@@ -14,15 +14,16 @@ Take a flag from "probably obsolete" to "code removed, PR merged, flag archived"
 - Ask for explicit approval, separately, before: opening the PR, and archiving each flag. An approval covers only the exact action shown.
 - If a command fails or its output is not what you expect, stop and show the exact error. Do not work around it.
 - Never print or commit API keys. Use `--json` with `--jq` and keep output small.
+- Run every Flagsmith command through `python scripts/cli.py run -- <args>` (add `--text` for plain output). The wrapper blocks deletes and API writes, hides keys, adds `--no-input`, and counts calls for the report. Do not call `flagsmith` directly.
 - Scripts live in `scripts/`. They do exact work. You decide, ask and explain.
 
 ## Workflow
 
-**0. Preflight.** Run `flagsmith --version`, `flagsmith auth status`, `flagsmith config`. Ask the user to confirm: the Flagsmith project, the environments, which one is production, and which repositories are in scope. First time only: check the CLI fields against `references/cli-fields.md`. If the CLI is not logged in, stop and tell the user.
+**0. Preflight.** Run `python scripts/cli.py run --text -- --version`, then `... -- auth status` and `... -- config` (if your agent blocks these, say so and continue; the user confirms the project instead). Ask the user to confirm: the Flagsmith project, the environments, which one is production, and which repositories are in scope. First time only: check the CLI fields against `references/cli-fields.md`. If the CLI is not logged in, stop and tell the user.
 
-**1. Candidates.** `flagsmith feature list` has no tags or archived flag, so read features with `flagsmith api /api/v1/projects/PROJECT_ID/features/` and the `--jq` filter in `references/cli-fields.md`. Follow `next` if results are paginated. Skip archived features and say so. If the user named flags, use only those.
+**1. Candidates.** `feature list` has no tags or archived flag, so read features with `python scripts/cli.py run -- api /api/v1/projects/PROJECT_ID/features/` and the `--jq` filter in `references/cli-fields.md`. Follow `next` if results are paginated. Skip archived features and say so. If the user named flags, use only those.
 
-**2. Inspect.** For each candidate list environment names with `flagsmith environment list`, then run `python scripts/snapshot.py capture --flag NAME --env ENV [--env ENV2] --known-envs ENV,ENV2,... --out .flag-cleanup/NAME.snapshot.json`. It reads the flag in every environment and prints one line each (enabled=unknown means the state could not be read). Tell the user about any WARNING for environments not captured. Note whether the flag is multivariate.
+**2. Inspect.** List environment names once with `python scripts/cli.py run -- environment list --jq "[.[].name]"`. For each candidate then run `python scripts/snapshot.py capture --flag NAME --env ENV [--env ENV2] --known-envs ENV,ENV2,... --out .flag-cleanup/NAME.snapshot.json`. It reads the flag in every environment and prints one line each (enabled=unknown means the state could not be read). Tell the user about any WARNING for environments not captured. Note whether the flag is multivariate.
 
 **3. Search code.** Run `python scripts/find_refs.py --repo . [--repo OTHER] --flag NAME --summary`. It reports SDK calls, other mentions, dynamic calls that could read any flag, and languages it did not search (`references/patterns.md`).
 
@@ -44,7 +45,7 @@ Take a flag from "probably obsolete" to "code removed, PR merged, flag archived"
 - `python scripts/snapshot.py verify --file .flag-cleanup/NAME.snapshot.json` matches.
 - Ask the user to confirm no other repository, service or client uses the flag. If they cannot, block the archive.
 
-**9. Archive.** After approval for each flag: `python scripts/cli.py run -- feature update NAME --archive --yes` (the CLI requires `--yes` when it cannot prompt, so pass it only after approval). Confirm with `api /api/v1/projects/ID/features/ --jq` that `is_archived` is true. Then run `flagsmith evaluate NAME --identity cleanup-check -e ENV` and report what you see. Observed so far: an archived flag still evaluates with its previous state, so apps that still read it keep working. Restore: `flagsmith feature update NAME --unarchive --yes`.
+**9. Archive.** After approval for each flag: `python scripts/cli.py run -- feature update NAME --archive --yes` (the CLI requires `--yes` when it cannot prompt, so pass it only after approval). Confirm with `api /api/v1/projects/ID/features/ --jq` that `is_archived` is true. Then run `python scripts/cli.py run -- evaluate NAME --identity cleanup-check -e ENV` and report what you see. Observed so far: an archived flag still evaluates with its previous state, so apps that still read it keep working. Restore: `flagsmith feature update NAME --unarchive --yes`.
 
 **10. Report.** Update the evidence report. Run `python scripts/cli.py meter` and give the user the call count and output size. State anything you could not verify.
 

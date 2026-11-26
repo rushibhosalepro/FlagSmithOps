@@ -30,6 +30,16 @@ class PackageTest(unittest.TestCase):
         for name in set(__import__("re").findall(r"scripts/(\w+\.py)", text)):
             self.assertTrue(os.path.isfile(os.path.join(SKILL, "scripts", name)), name)
 
+    def test_every_cli_call_in_skill_goes_through_the_wrapper(self):
+        import re
+        with open(os.path.join(SKILL, "SKILL.md"), encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertIn("Do not call `flagsmith` directly", text)
+        workflow = text.split("## Workflow", 1)[1]
+        bare = [m.group(0) for m in re.finditer(r"`flagsmith (?:feature|flag|api|evaluate|eval|environment|env|auth|config|segment|project)\b[^`]*`", workflow)]
+        allowed = ("feature update NAME --unarchive --yes",)  # documented restore text, run through the wrapper in practice
+        bare = [b for b in bare if not any(a in b for a in allowed)]
+        self.assertEqual(bare, [], "bare flagsmith commands in the workflow: %s" % bare)
 
 if __name__ == "__main__":
     unittest.main()
