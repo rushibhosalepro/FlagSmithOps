@@ -1,0 +1,1 @@
+const { multi_a, multi_b } = useFlags(['multi_a', 'multi_b']);
