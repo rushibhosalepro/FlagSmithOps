@@ -144,4 +144,15 @@ def main(argv=None):
         fresh = capture(saved["flag"], list(saved["environments"]), seg_ids)
         problems = diff(saved["environments"], fresh["environments"])
         if problems:
-            print(
+            print("DIFFERENT")
+            print("\n".join(problems))
+            return 1
+        print("MATCHES snapshot")
+        return 0
+    except cli.CliError as err:
+        sys.stderr.write(str(err) + "\n")
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

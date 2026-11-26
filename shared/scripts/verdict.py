@@ -38,6 +38,8 @@ def decide(c):
     if user.get("other_usage") == "in_use":
         refuse.append("user says the flag is still in use elsewhere")
 
+    if c.get("tags") is None and not c.get("permanent"):
+        approval.append("tags not read, so permanent status is unknown")
     if c.get("stale") is not True:
         approval.append("staleness not established" if c.get("stale") is None else "changed within the stale period")
     if refs.get("dynamic_call_sites", 0) > 0:

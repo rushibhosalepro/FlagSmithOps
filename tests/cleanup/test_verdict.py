@@ -91,6 +91,11 @@ class VerdictTest(unittest.TestCase):
         self.assertEqual(r["verdict"], "PROCEED")
         self.assertIn("segment and identity overrides not checked", r["unverified"])
 
+    def test_unread_tags_cannot_proceed(self):
+        r = make(tags=None)
+        self.assertEqual(r["verdict"], "APPROVAL REQUIRED")
+        self.assertIn("permanent status is unknown", " ".join(r["reasons"]))
+
     def test_already_archived_is_refused(self):
         self.assertEqual(make(archived=True)["verdict"], "REFUSE")
 

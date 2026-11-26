@@ -103,4 +103,29 @@ def main(argv=None):
         if not os.path.isdir(repo):
             sys.stderr.write("not a directory: %s\n" % repo)
             return 2
-    re
+    result = scan(ns.repo, ns.flag)
+    if ns.summary:
+        print(summary_text(result))
+    else:
+        print(json.dumps(result, indent=2))
+    return 0
+
+
+def summary_text(result, limit=5):
+    lines = ["files searched: %d" % result["files_searched"]]
+    for name, info in result["flags"].items():
+        s = info["summary"]
+        lines.append("%s: sdk_calls=%d other_literals=%d" % (name, s["sdk_calls"], s["other_literals"]))
+        for ref in info["references"][:limit]:
+            lines.append("  %s:%d [%s]" % (ref["file"], ref["line"], ref["kind"]))
+        if len(info["references"]) > limit:
+            lines.append("  ... %d more" % (len(info["references"]) - limit))
+    lines.append("dynamic call sites: %d" % result["dynamic_call_sites_count"])
+    for site in result["dynamic_call_sites"][:limit]:
+        lines.append("  %s:%d" % (site["file"], site["line"]))
+    lines.append("unsearched languages: %s" % (", ".join(result["unsearched_languages"]) or "none"))
+    return "\n".join(lines)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

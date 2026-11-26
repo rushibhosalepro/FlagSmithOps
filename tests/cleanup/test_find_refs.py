@@ -51,6 +51,13 @@ class FindRefsTest(unittest.TestCase):
         self.assertTrue(ref["file"].endswith("src/app.py"))
         self.assertEqual(ref["line"], 2)
 
+    def test_summary_text_is_compact(self):
+        text = find_refs.summary_text(self.result)
+        self.assertIn("new_checkout: sdk_calls=1 other_literals=0", text)
+        self.assertIn("dynamic call sites: 2", text)
+        self.assertIn("unsearched languages: .go", text)
+        self.assertLess(len(text), 1500)
+
     def test_missing_repo_exits_with_error(self):
         self.assertEqual(find_refs.main(["--repo", os.path.join(REPO, "nope"), "--flag", "x"]), 2)
 
