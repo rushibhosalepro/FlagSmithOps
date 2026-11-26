@@ -52,6 +52,18 @@ class CliTest(unittest.TestCase):
         self.assertEqual((s["calls"], s["failed"]), (2, 1))
         self.assertGreater(s["output_bytes"], 0)
 
+    def test_cli_run_failure_exits_2_and_shows_the_error_without_secrets(self):
+        import io
+        import contextlib
+        from unittest import mock
+        err = io.StringIO()
+        boom = cli.CliError("flagsmith exited 1: boom FLAGSMITH_API_KEY=[REDACTED]", ["flag", "get"], 1)
+        with mock.patch.object(cli, "run", side_effect=boom), contextlib.redirect_stderr(err):
+            code = cli.main(["run", "--", "flag", "get", "x"])
+        self.assertEqual(code, 2)
+        self.assertIn("boom", err.getvalue())
+        self.assertNotIn("secret123", err.getvalue())
+
     def test_redact(self):
         self.assertNotIn("abc123", cli.redact("FLAGSMITH_API_KEY=abc123 and Bearer tok999"))
         self.assertNotIn("tok999", cli.redact("Authorization: Bearer tok999"))

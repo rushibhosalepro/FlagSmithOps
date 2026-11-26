@@ -5,9 +5,9 @@ A successful CLI write does not prove the incident is resolved. This reports wha
 `flagsmith evaluate` returns for each identity you name, so an override that keeps the
 feature on is visible.
 
-  python check_effect.py --flag NAME --identity affected-user --identity override-user [--env KEY]
+  python check_effect.py --flag NAME --env ENV --identity affected-user --identity override-user
 
-Exit codes: 0 all identities see the feature off, 1 at least one still sees it on,
+Exit codes: 0 all identities checked see the feature off (the incident is still NOT verified), 1 at least one still sees it on,
 3 could not tell for at least one identity.
 """
 import argparse
@@ -47,6 +47,7 @@ def flag_state(obj, flag):
 
 
 def check(flag, identities, env=None, runner=None):
+    """Evaluate `flag` for each identity in the named environment. Never reports the incident as resolved."""
     runner = runner or cli.run
     rows = []
     for identity in identities:
@@ -58,26 +59,37 @@ def check(flag, identities, env=None, runner=None):
         rows.append({"identity": identity, "enabled": state, "error": error})
     still_on = [r["identity"] for r in rows if r["enabled"] is True]
     unknown = [r["identity"] for r in rows if r["enabled"] is None]
-    if still_on:
+    if not env:
+        result = "UNVERIFIED: no environment named, so the environment checked is unknown"
+    elif not rows:
+        result = "UNVERIFIED: no identities were checked"
+    elif still_on:
         result = "PARTIAL: feature still on for " + ", ".join(still_on)
     elif unknown:
         result = "UNVERIFIED: could not read the flag for " + ", ".join(unknown)
     else:
-        result = "MITIGATED for the identities checked (the incident itself is not proven resolved)"
-    return {"flag": flag, "rows": rows, "result": result}
-
+        result = "FLAG OFF for the %d identity(ies) checked in %s" % (len(rows), env)
+    return {
+        "flag": flag,
+        "environment": env,
+        "rows": rows,
+        "result": result,
+        # Whether the symptom is gone cannot be seen from flag evaluation. A human must confirm it.
+        "incident_status": "NOT VERIFIED: ask the user to confirm the symptom is gone",
+    }
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--flag", required=True)
     parser.add_argument("--identity", action="append", required=True)
-    parser.add_argument("--env", help="value for --environment (an SDK key may be required)")
+    parser.add_argument("--env", required=True, help="environment to evaluate (an SDK key may be required)")
     ns = parser.parse_args(argv)
     out = check(ns.flag, ns.identity, ns.env)
     for row in out["rows"]:
         shown = "unknown" if row["enabled"] is None else ("on" if row["enabled"] else "off")
         print("%-24s %s%s" % (row["identity"], shown, "  (%s)" % row["error"] if row["error"] else ""))
     print(out["result"])
+    print("Incident: " + out["incident_status"])
     if out["result"].startswith("PARTIAL"):
         return 1
     return 3 if out["result"].startswith("UNVERIFIED") else 0

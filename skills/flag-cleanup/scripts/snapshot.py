@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Capture, verify and diff flag state across environments.
 
-The CLI's JSON field names are unverified, so snapshots keep the raw CLI output.
-Restore commands are derived only when an `enabled` field can be found.
+The CLI's JSON field names are unverified, so a snapshot keeps the raw CLI output.
+Restore commands are derived only from TOP-LEVEL fields of that output. A value found in
+a nested object (a segment override, a variant) is never used, because it may describe
+something other than the environment default.
 
-  python snapshot.py capture --flag NAME --env production --env staging --out snapshot.json
+  python snapshot.py capture --flag NAME --env production --env staging --out snapshot.json [--known-envs production,staging,dev]
   python snapshot.py verify  --file snapshot.json
   python snapshot.py restore-commands --file snapshot.json --env production
 """
@@ -20,12 +22,14 @@ import cli  # noqa: E402
 IGNORE_DEFAULT = {"updated_at", "created_at"}
 
 
-def capture(flag, envs, segment_ids=(), runner=None):
+def capture(flag, envs, segment_ids=(), runner=None, known_envs=None):
+    """Read the flag in every named environment. Raises CliError if any read fails."""
     runner = runner or cli.run
     snap = {
         "flag": flag,
         "captured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "environments": {},
+        "not_captured": sorted(set(known_envs or []) - set(envs)),
         "notes": [],
     }
     for env in envs:
@@ -38,7 +42,13 @@ def capture(flag, envs, segment_ids=(), runner=None):
             except cli.CliError as err:
                 entry["segment_overrides"][str(sid)] = {"error": str(err)}
         snap["environments"][env] = entry
-    if not segment_ids:
+    if known_envs is None:
+        snap["notes"].append("Environments not named were not captured, and the full environment list was not checked.")
+    if snap["not_captured"]:
+        snap["notes"].append("NOT captured: " + ", ".join(snap["not_captured"]))
+    if segment_ids:
+        snap["notes"].append("Segment overrides were captured for reference only. They are never restored.")
+    else:
         snap["notes"].append(
             "Segment and identity overrides were not captured. The CLI reads them only by segment or identity id."
         )
@@ -74,38 +84,56 @@ def diff(a, b, ignore=IGNORE_DEFAULT, path=""):
     return out
 
 
-def _find(obj, keys):
-    if isinstance(obj, dict):
+def _top(raw, keys):
+    """(found, value) for the first of `keys` that is a top-level field of a dict. Never searches nested data."""
+    if isinstance(raw, dict):
         for key in keys:
-            if key in obj:
-                return True, obj[key]
-        for value in obj.values():
-            found, result = _find(value, keys)
-            if found:
-                return True, result
-    elif isinstance(obj, list):
-        for value in obj:
-            found, result = _find(value, keys)
-            if found:
-                return True, result
+            if key in raw:
+                return True, raw[key]
     return False, None
 
 
+def enabled_state(raw):
+    """True or False when the top-level `enabled` is a real boolean, else None (unknown)."""
+    found, value = _top(raw, ["enabled"])
+    return value if found and isinstance(value, bool) else None
+
+
+def _has_variants(raw):
+    if not isinstance(raw, dict):
+        return False
+    return any(("multivariate" in k.lower() or "variant" in k.lower()) and v for k, v in raw.items())
+
+
 def restore_commands(snap, env):
-    """Commands that return the environment default to the snapshot. Best effort."""
+    """Commands that return the environment DEFAULT to the snapshot. Best effort, honest about gaps."""
     raw = snap["environments"][env]["default"]
     flag = snap["flag"]
-    cmds, notes = [], ["Multivariate variants and weights are not restored by these commands. Run `snapshot.py verify` and compare."]
-    found, enabled = _find(raw, ["enabled"])
-    if found and isinstance(enabled, bool):
-        cmds.append(["flagsmith", "flag", "enable" if enabled else "disable", flag, "--environment", env])
+    cmds = []
+    notes = [
+        "Restores the environment default only (enabled state, and a plain value where one can be read).",
+        "Variants, weights, segment overrides and identity overrides are not restored. Run `snapshot.py verify` and report any difference.",
+    ]
+    state = enabled_state(raw)
+    if state is None:
+        notes.append("No boolean top-level 'enabled' field in the snapshot, so no enable/disable command was generated. Restore by hand from the raw state.")
     else:
-        notes.append("Could not find an 'enabled' field in the snapshot. Restore by hand from the raw state.")
-    found, value = _find(raw, ["feature_state_value", "value"])
-    if found and value is not None and not isinstance(value, (dict, list)):
-        cmds.append(["flagsmith", "flag", "update", flag, "--environment", env, "--value", str(value)])
-        notes.append("Value restore assumes the flag value type is unchanged.")
-    return {"commands": cmds, "notes": notes}
+        cmds.append(["flagsmith", "flag", "enable" if state else "disable", flag, "--environment", env])
+    if _has_variants(raw):
+        notes.append("This flag appears to be multivariate. Its value was not restored.")
+    else:
+        found, value = _top(raw, ["feature_state_value", "value"])
+        if found and value is not None and not isinstance(value, (dict, list)):
+            cmds.append(["flagsmith", "flag", "update", flag, "--environment", env, "--value", str(value)])
+            notes.append("Value restore assumes the value type is unchanged.")
+    return {"commands": cmds, "notes": notes, "multivariate_detected": _has_variants(raw)}
+
+
+def verify(saved, runner=None):
+    """Re-read live state and compare it with a snapshot. Returns a list of differences (empty = identical)."""
+    seg_ids = sorted({sid for e in saved["environments"].values() for sid in e["segment_overrides"]})
+    fresh = capture(saved["flag"], list(saved["environments"]), seg_ids, runner=runner)
+    return diff(saved["environments"], fresh["environments"])
 
 
 def main(argv=None):
@@ -114,6 +142,7 @@ def main(argv=None):
     cap = sub.add_parser("capture")
     cap.add_argument("--flag", required=True)
     cap.add_argument("--env", action="append", required=True)
+    cap.add_argument("--known-envs", default="", help="comma-separated names from `environment list`, to detect omissions")
     cap.add_argument("--segment-ids", default="")
     cap.add_argument("--out", required=True)
     ver = sub.add_parser("verify", help="re-read live state and compare with a snapshot file")
@@ -125,13 +154,16 @@ def main(argv=None):
     try:
         if ns.command == "capture":
             ids = [s for s in ns.segment_ids.split(",") if s]
-            snap = capture(ns.flag, ns.env, ids)
+            known = [s for s in ns.known_envs.split(",") if s] or None
+            snap = capture(ns.flag, ns.env, ids, known_envs=known)
             with open(ns.out, "w", encoding="utf-8") as handle:
                 json.dump(snap, handle, indent=2)
             print("saved %s" % ns.out)
             for env, entry in snap["environments"].items():
-                found, enabled = _find(entry["default"], ["enabled"])
-                print("  %s: enabled=%s" % (env, enabled if found else "unknown (field not found)"))
+                state = enabled_state(entry["default"])
+                print("  %s: enabled=%s" % (env, "unknown" if state is None else state))
+            if snap["not_captured"]:
+                print("  WARNING: not captured: " + ", ".join(snap["not_captured"]))
             for note in snap["notes"]:
                 print("  note: " + note)
             return 0
@@ -140,9 +172,7 @@ def main(argv=None):
         if ns.command == "restore-commands":
             print(json.dumps(restore_commands(saved, ns.env), indent=2))
             return 0
-        seg_ids = sorted({sid for e in saved["environments"].values() for sid in e["segment_overrides"]})
-        fresh = capture(saved["flag"], list(saved["environments"]), seg_ids)
-        problems = diff(saved["environments"], fresh["environments"])
+        problems = verify(saved)
         if problems:
             print("DIFFERENT")
             print("\n".join(problems))

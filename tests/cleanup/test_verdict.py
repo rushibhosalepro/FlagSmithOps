@@ -1,5 +1,7 @@
 """Covers FC-04, FC-05, FC-06 for the eight cleanup fixtures plus edge cases."""
 import copy
+import json
+import os
 import unittest
 
 import _paths
@@ -151,6 +153,39 @@ class VerdictTest(unittest.TestCase):
     def test_refuse_outranks_approval(self):
         r = make(tags=["permanent"], stale=None)
         self.assertEqual(r["verdict"], "REFUSE")
+
+
+class VerdictFixtureFilesTest(unittest.TestCase):
+    """Runs verdict.py end to end on fixture files, the way the skill does."""
+
+    def run_file(self, name):
+        import contextlib
+        import io
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            code = verdict.main(["--input", os.path.join(_paths.FIXTURES, "verdict_inputs", name)])
+        self.assertEqual(code, 0)
+        return json.loads(buf.getvalue())[0]
+
+    def test_missing_enabled_field_in_production(self):
+        r = self.run_file("missing_enabled.json")
+        self.assertEqual(r["verdict"], "APPROVAL REQUIRED")
+        self.assertIn("enabled state unknown for: production", r["reasons"])
+
+    def test_null_enabled_field_in_production(self):
+        r = self.run_file("null_enabled.json")
+        self.assertEqual(r["verdict"], "APPROVAL REQUIRED")
+        self.assertIn("enabled state unknown for: production", r["reasons"])
+
+    def test_unknown_overrides_from_file(self):
+        r = self.run_file("unknown_overrides.json")
+        self.assertEqual(r["verdict"], "APPROVAL REQUIRED")
+        self.assertIn("segment and identity overrides not checked", r["unverified"])
+
+    def test_multiple_environment_configurations_need_a_decision(self):
+        r = self.run_file("multi_environment.json")
+        self.assertEqual(r["verdict"], "APPROVAL REQUIRED")
+        self.assertTrue(any("environments differ" in x and "staging=off" in x for x in r["reasons"]))
 
 
 if __name__ == "__main__":

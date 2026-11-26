@@ -1,60 +1,210 @@
-"""Covers PR-03 (state capture, restore commands, comparison)."""
+"""Covers PR-03: state capture, restore commands, verification, and honesty about what is not restored.
+
+Fixtures in tests/fixtures/cli_outputs are SYNTHETIC. The real CLI field names are unverified.
+"""
+import json
+import os
+import tempfile
 import unittest
+from unittest import mock
 
 import _paths
 import cli
 import snapshot
 
 
-def fake_runner(args):
-    flag, env = args[2], args[args.index("--environment") + 1]
-    if "--segment" in args:
-        raise cli.CliError("exit 1: no override")
-    return {"feature": flag, "environment": env, "enabled": env == "production", "updated_at": "t1",
-            "feature_state_value": "blue"}
+def out(name):
+    return _paths.load_json("cli_outputs", name)
 
 
-class SnapshotTest(unittest.TestCase):
-    def test_capture_keeps_raw_state_for_every_environment(self):
-        snap = snapshot.capture("f", ["production", "staging"], runner=fake_runner)
+def runner_from(table):
+    """table maps (flag env) -> fixture name or Exception. Segment reads raise unless listed under (env, segment)."""
+    def run(args):
+        env = args[args.index("--environment") + 1]
+        key = (env, args[args.index("--segment") + 1]) if "--segment" in args else env
+        value = table[key]
+        if isinstance(value, Exception):
+            raise value
+        return out(value) if isinstance(value, str) else value
+    return run
+
+
+class CaptureTest(unittest.TestCase):
+    def test_every_named_environment_is_captured_with_raw_state(self):
+        snap = snapshot.capture("f", ["production", "staging"],
+                                runner=runner_from({"production": "flag_get_enabled.json", "staging": "flag_get_disabled.json"}))
         self.assertEqual(set(snap["environments"]), {"production", "staging"})
-        self.assertTrue(snap["environments"]["production"]["default"]["enabled"])
+        self.assertIs(snap["environments"]["production"]["default"]["enabled"], True)
+        self.assertIs(snap["environments"]["staging"]["default"]["enabled"], False)
 
-    def test_capture_without_segments_notes_overrides_not_captured(self):
-        snap = snapshot.capture("f", ["production"], runner=fake_runner)
+    def test_environments_left_out_are_reported_not_silently_skipped(self):
+        snap = snapshot.capture("f", ["production"], runner=runner_from({"production": "flag_get_enabled.json"}),
+                                known_envs=["production", "staging", "dev"])
+        self.assertEqual(snap["not_captured"], ["dev", "staging"])
+        self.assertTrue(any("NOT captured: dev, staging" in n for n in snap["notes"]))
+
+    def test_without_a_known_environment_list_the_gap_is_noted(self):
+        snap = snapshot.capture("f", ["production"], runner=runner_from({"production": "flag_get_enabled.json"}))
+        self.assertTrue(any("full environment list was not checked" in n for n in snap["notes"]))
+
+    def test_overrides_not_captured_is_explicit(self):
+        snap = snapshot.capture("f", ["production"], runner=runner_from({"production": "flag_get_enabled.json"}))
         self.assertTrue(any("overrides were not captured" in n for n in snap["notes"]))
 
-    def test_segment_errors_are_recorded_not_raised(self):
-        snap = snapshot.capture("f", ["production"], segment_ids=[7], runner=fake_runner)
+    def test_captured_segment_overrides_are_marked_reference_only(self):
+        runner = runner_from({"production": "flag_get_enabled.json", ("production", "7"): {"enabled": False}})
+        snap = snapshot.capture("f", ["production"], segment_ids=[7], runner=runner)
+        self.assertEqual(snap["environments"]["production"]["segment_overrides"]["7"], {"enabled": False})
+        self.assertTrue(any("never restored" in n for n in snap["notes"]))
+
+    def test_segment_read_error_is_recorded_not_raised(self):
+        runner = runner_from({"production": "flag_get_enabled.json", ("production", "7"): cli.CliError("exit 1: none")})
+        snap = snapshot.capture("f", ["production"], segment_ids=[7], runner=runner)
         self.assertIn("error", snap["environments"]["production"]["segment_overrides"]["7"])
 
-    def test_diff_ignores_timestamps_and_finds_real_changes(self):
+    def test_failed_read_of_a_default_raises_so_no_partial_snapshot_is_used(self):
+        runner = runner_from({"production": "flag_get_enabled.json", "staging": cli.CliError("exit 1: boom")})
+        with self.assertRaises(cli.CliError):
+            snapshot.capture("f", ["production", "staging"], runner=runner)
+
+    def test_cli_capture_failure_exits_2_and_writes_no_file(self):
+        target = os.path.join(tempfile.mkdtemp(), "snap.json")
+        with mock.patch.object(snapshot.cli, "run", side_effect=cli.CliError("exit 1: boom")):
+            code = snapshot.main(["capture", "--flag", "f", "--env", "production", "--out", target])
+        self.assertEqual(code, 2)
+        self.assertFalse(os.path.exists(target))
+
+
+class EnabledStateTest(unittest.TestCase):
+    def test_only_real_booleans_are_known(self):
+        self.assertIs(snapshot.enabled_state(out("flag_get_enabled.json")), True)
+        self.assertIs(snapshot.enabled_state(out("flag_get_disabled.json")), False)
+
+    def test_missing_null_and_invalid_are_unknown_never_false(self):
+        self.assertIsNone(snapshot.enabled_state(out("flag_get_missing_enabled.json")))
+        self.assertIsNone(snapshot.enabled_state(out("flag_get_null_enabled.json")))
+        for bad in ("true", 1, 0, [], {}):
+            self.assertIsNone(snapshot.enabled_state({"enabled": bad}), bad)
+        self.assertIsNone(snapshot.enabled_state("not a dict"))
+
+    def test_a_nested_enabled_is_not_the_environment_default(self):
+        self.assertIsNone(snapshot.enabled_state(out("flag_get_nested_enabled_only.json")))
+
+
+def snap_of(name_by_env):
+    return snapshot.capture("f", list(name_by_env), runner=runner_from(name_by_env))
+
+
+class RestoreCommandsTest(unittest.TestCase):
+    def cmds(self, snap, env):
+        return snapshot.restore_commands(snap, env)
+
+    def test_enabled_and_disabled_defaults_get_the_matching_command(self):
+        snap = snap_of({"production": "flag_get_enabled.json", "staging": "flag_get_disabled.json"})
+        self.assertEqual(self.cmds(snap, "production")["commands"][0][:4], ["flagsmith", "flag", "enable", "f"])
+        self.assertEqual(self.cmds(snap, "staging")["commands"][0][:4], ["flagsmith", "flag", "disable", "f"])
+
+    def test_multiple_environments_each_restore_to_their_own_state(self):
+        snap = snap_of({"production": "flag_get_enabled.json", "staging": "flag_get_disabled.json", "dev": "flag_get_enabled.json"})
+        verbs = {env: self.cmds(snap, env)["commands"][0][2] for env in snap["environments"]}
+        self.assertEqual(verbs, {"production": "enable", "staging": "disable", "dev": "enable"})
+        for env, verb in verbs.items():
+            self.assertIn(env, self.cmds(snap, env)["commands"][0])
+
+    def test_scalar_value_is_restored_for_a_plain_flag(self):
+        cmds = self.cmds(snap_of({"production": "flag_get_enabled.json"}), "production")["commands"]
+        self.assertIn("--value", cmds[1])
+        self.assertIn("blue", cmds[1])
+
+    def test_missing_enabled_generates_no_enable_or_disable_command(self):
+        res = self.cmds(snap_of({"production": "flag_get_missing_enabled.json"}), "production")
+        self.assertFalse(any(c[2] in ("enable", "disable") for c in res["commands"]))
+        self.assertTrue(any("No boolean top-level 'enabled'" in n for n in res["notes"]))
+
+    def test_null_enabled_generates_no_enable_or_disable_command(self):
+        res = self.cmds(snap_of({"production": "flag_get_null_enabled.json"}), "production")
+        self.assertFalse(any(c[2] in ("enable", "disable") for c in res["commands"]))
+
+    def test_nested_enabled_never_becomes_a_production_command(self):
+        res = self.cmds(snap_of({"production": "flag_get_nested_enabled_only.json"}), "production")
+        self.assertFalse(any(c[2] in ("enable", "disable") for c in res["commands"]))
+
+    def test_multivariate_flag_is_detected_and_value_not_restored(self):
+        res = self.cmds(snap_of({"production": "flag_get_multivariate.json"}), "production")
+        self.assertTrue(res["multivariate_detected"])
+        self.assertFalse(any("--value" in c for c in res["commands"]))
+        self.assertTrue(any("multivariate" in n for n in res["notes"]))
+
+    def test_variant_values_are_never_used_as_the_flag_value(self):
+        res = self.cmds(snap_of({"production": "flag_get_multivariate.json"}), "production")
+        flat = json.dumps(res["commands"])
+        self.assertNotIn("variant_a", flat)
+        self.assertNotIn("variant_b", flat)
+
+    def test_notes_always_say_what_is_not_restored(self):
+        for name in ("flag_get_enabled.json", "flag_get_multivariate.json", "flag_get_missing_enabled.json"):
+            notes = " ".join(self.cmds(snap_of({"production": name}), "production")["notes"])
+            for phrase in ("Variants", "weights", "segment overrides", "identity overrides", "not restored"):
+                self.assertIn(phrase, notes, name)
+
+
+class VerifyTest(unittest.TestCase):
+    def saved(self, name="flag_get_enabled.json"):
+        return snap_of({"production": name})
+
+    def test_identical_state_matches(self):
+        self.assertEqual(snapshot.verify(self.saved(), runner=runner_from({"production": "flag_get_enabled.json"})), [])
+
+    def test_timestamps_alone_do_not_cause_a_mismatch(self):
+        live = dict(out("flag_get_enabled.json"), updated_at="t2")
+        self.assertEqual(snapshot.verify(self.saved(), runner=runner_from({"production": live})), [])
+
+    def test_restoration_mismatch_is_reported(self):
+        problems = snapshot.verify(self.saved(), runner=runner_from({"production": "flag_get_disabled.json"}))
+        self.assertTrue(any("enabled" in p for p in problems))
+
+    def test_value_mismatch_is_reported(self):
+        live = dict(out("flag_get_enabled.json"), feature_state_value="green")
+        self.assertTrue(snapshot.verify(self.saved(), runner=runner_from({"production": live})))
+
+    def test_multivariate_weight_change_is_reported_even_though_restore_cannot_fix_it(self):
+        problems = snapshot.verify(self.saved("flag_get_multivariate.json"),
+                                   runner=runner_from({"production": "flag_get_multivariate_reweighted.json"}))
+        self.assertTrue(any("percentage_allocation" in p for p in problems))
+
+    def test_mismatch_in_one_of_several_environments_is_reported(self):
+        saved = snap_of({"production": "flag_get_enabled.json", "staging": "flag_get_disabled.json"})
+        problems = snapshot.verify(saved, runner=runner_from({"production": "flag_get_enabled.json", "staging": "flag_get_enabled.json"}))
+        self.assertTrue(problems)
+        self.assertTrue(all(p.startswith("staging") for p in problems))
+
+    def test_failed_read_during_verify_raises_instead_of_claiming_a_match(self):
+        with self.assertRaises(cli.CliError):
+            snapshot.verify(self.saved(), runner=runner_from({"production": cli.CliError("exit 1: boom")}))
+
+    def test_cli_verify_exit_codes(self):
+        path = os.path.join(tempfile.mkdtemp(), "snap.json")
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(self.saved(), handle)
+        with mock.patch.object(snapshot.cli, "run", return_value=out("flag_get_enabled.json")):
+            self.assertEqual(snapshot.main(["verify", "--file", path]), 0)
+        with mock.patch.object(snapshot.cli, "run", return_value=out("flag_get_disabled.json")):
+            self.assertEqual(snapshot.main(["verify", "--file", path]), 1)
+        with mock.patch.object(snapshot.cli, "run", side_effect=cli.CliError("exit 1: boom")):
+            self.assertEqual(snapshot.main(["verify", "--file", path]), 2)
+
+
+class DiffTest(unittest.TestCase):
+    def test_ignores_timestamps_and_finds_real_changes(self):
         a = {"enabled": True, "updated_at": "t1"}
         self.assertEqual(snapshot.diff(a, {"enabled": True, "updated_at": "t2"}), [])
         self.assertEqual(len(snapshot.diff(a, {"enabled": False, "updated_at": "t1"})), 1)
 
-    def test_diff_reports_missing_keys_and_nested_paths(self):
-        out = snapshot.diff({"x": {"y": 1}}, {"x": {"z": 1}})
-        self.assertEqual(len(out), 2)
+    def test_reports_missing_keys_and_nested_paths(self):
+        self.assertEqual(len(snapshot.diff({"x": {"y": 1}}, {"x": {"z": 1}})), 2)
 
-    def test_restore_commands_from_enabled_flag(self):
-        snap = snapshot.capture("f", ["production", "staging"], runner=fake_runner)
-        on = snapshot.restore_commands(snap, "production")["commands"]
-        off = snapshot.restore_commands(snap, "staging")["commands"]
-        self.assertEqual(on[0][:4], ["flagsmith", "flag", "enable", "f"])
-        self.assertEqual(off[0][:4], ["flagsmith", "flag", "disable", "f"])
-        self.assertIn("--value", on[1])
-
-    def test_restore_always_warns_that_variants_and_weights_are_not_restored(self):
-        snap = snapshot.capture("f", ["production"], runner=fake_runner)
-        notes = snapshot.restore_commands(snap, "production")["notes"]
-        self.assertTrue(any("variants and weights are not restored" in n for n in notes))
-
-    def test_restore_without_enabled_field_says_so(self):
-        snap = {"flag": "f", "environments": {"production": {"default": {"weird": 1}}}}
-        res = snapshot.restore_commands(snap, "production")
-        self.assertEqual(res["commands"], [])
-        self.assertTrue(res["notes"])
+    def test_list_length_change_is_reported(self):
+        self.assertTrue(snapshot.diff({"v": [1, 2]}, {"v": [1]}))
 
 
 if __name__ == "__main__":

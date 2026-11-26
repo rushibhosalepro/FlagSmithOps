@@ -22,7 +22,7 @@ Take a flag from "probably obsolete" to "code removed, PR merged, flag archived"
 
 **1. Candidates.** List features with `flagsmith feature list` and a `--jq` filter that returns only name, tags and archived status (see `references/cli-fields.md`). Skip archived features and say so. If the user named flags, use only those.
 
-**2. Inspect.** For each candidate run `python scripts/snapshot.py capture --flag NAME --env ENV [--env ENV2] --out .flag-cleanup/NAME.snapshot.json`. This reads the flag in every environment and prints a one-line summary per environment. Note whether it is multivariate.
+**2. Inspect.** For each candidate list environment names with `flagsmith environment list`, then run `python scripts/snapshot.py capture --flag NAME --env ENV [--env ENV2] --known-envs ENV,ENV2,... --out .flag-cleanup/NAME.snapshot.json`. It reads the flag in every environment and prints one line each (enabled=unknown means the state could not be read). Tell the user about any WARNING for environments not captured. Note whether the flag is multivariate.
 
 **3. Search code.** Run `python scripts/find_refs.py --repo . [--repo OTHER] --flag NAME --summary`. It reports SDK calls, other mentions, dynamic calls that could read any flag, and languages it did not search (`references/patterns.md`).
 

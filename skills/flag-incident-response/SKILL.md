@@ -23,9 +23,9 @@ Find the flag behind a broken feature, switch it off safely, prove what changed,
 
 **1. Find candidates.** Save the flag names to `.fsops/flags.txt` (`flagsmith feature list` with a `--jq` that returns names only). Run `python scripts/candidates.py --repo . --keyword WORD [--keyword WORD2] --flags-file .fsops/flags.txt`. Keywords come from the user's description (feature, page, service names).
 
-**2. Resolve.** If `clear_winner` is false, show the top candidates with their evidence and ask the user to choose. Stop until they do. If there are no candidates, or the flag is not clearly the cause, say so and stop. Mention `dynamic_call_sites` and `unsearched_languages` when non-zero, since they can hide a flag.
+**2. Resolve.** The ranking is a heuristic. Even when `clear_winner` is true, show the flag and its evidence and get the user to confirm it. If `clear_winner` is false, show the top candidates and ask the user to choose. Stop until they do. If there are no candidates, say so and stop. A winner is never named when `coverage_gaps` is not empty (dynamic SDK calls, unsearched languages): tell the user the cause may not be in the search.
 
-**3. Capture original state.** Run `python scripts/snapshot.py capture --flag NAME --env ENV [--env OTHER] --out .fsops/NAME.snapshot.json`. Capture every environment so you can show the others are untouched. If the project uses segments, ask the user which ones could matter and pass `--segment-ids`.
+**3. Capture original state.** List environment names with `flagsmith environment list`, then run `python scripts/snapshot.py capture --flag NAME --env ENV [--env OTHER] --known-envs ENV,OTHER,... --out .fsops/NAME.snapshot.json`. Capture every environment so you can show the others are untouched. If it prints a WARNING about environments not captured, tell the user. If the project uses segments, ask the user which ones could matter and pass `--segment-ids`.
 
 **4. Prepare.** Check mitigation is safe. REFUSE and explain if disabling could cause harm (for example the flag guards a data migration or a payment path with no fallback), or if the state could not be read. Otherwise show: flag, environment, change (on to off), expected effect, who may still see the feature (overrides), and the restore commands from `python scripts/snapshot.py restore-commands --file .fsops/NAME.snapshot.json --env ENV`.
 
@@ -33,7 +33,7 @@ Find the flag behind a broken feature, switch it off safely, prove what changed,
 
 **6. Apply.** `python scripts/cli.py run -- flag disable NAME --environment ENV`. On any failure, stop and show the error. Do not retry with other options.
 
-**7. Verify.** Run `python scripts/check_effect.py --flag NAME --identity AFFECTED [--identity OVERRIDE_USER]`. Include an identity covered by each override you know of. If the result is PARTIAL, say the mitigation is partial and name who still sees the feature. Then ask the user to confirm the symptom is gone. You cannot see that from the CLI.
+**7. Verify.** Run `python scripts/check_effect.py --flag NAME --env ENV --identity AFFECTED [--identity OVERRIDE_USER]`. `--env` is required, so you never check the wrong environment. Include an identity covered by each override you know of. FLAG OFF means only that those identities see the flag off. PARTIAL means someone still sees the feature: name them. UNVERIFIED means you could not tell. The script always prints `Incident: NOT VERIFIED`. Never tell the user the incident is resolved. Ask them to confirm the symptom is gone, because you cannot see that from the CLI.
 
 **8. Restore (when asked).** Ask for approval. Run the restore commands. Confirm with `python scripts/snapshot.py verify --file .fsops/NAME.snapshot.json`. Report if the state differs. Restore covers the environment default only (enabled state and a simple value). Variants, weights and overrides are not restored. Report any difference `verify` finds.
 

@@ -17,8 +17,8 @@ If a field is missing or named differently, tell the user, adapt the filters, an
 | `flag get` | `enabled` | state per environment, restore command |
 | `evaluate FLAG --identity ID` | `enabled`, with the flag name in `name` or `feature.name` | `check_effect.py` |
 
-## Environment argument
-The CLI documents `--environment` as the environment's client-side SDK key. Some commands may accept a name. If a command rejects a name, use the key and record that in the evidence. Unverified.
+## Evaluation environment
+The CLI documents `--environment` as the environment's client-side SDK key. Some commands may accept a name. If a command rejects a name, use the key and record that in the evidence. Unverified. `check_effect.py` requires `--env` so it never evaluates whichever environment the CLI happens to be bound to.
 
 ## Overrides
 The CLI reads overrides only by segment id or identity id. Without ids, overrides cannot be listed. Say so in the report and ask the user which identities or segments to check.

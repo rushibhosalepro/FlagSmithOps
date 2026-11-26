@@ -1,0 +1,9 @@
+{
+  "feature": {"name": "f"},
+  "enabled": true,
+  "feature_state_value": "control",
+  "multivariate_feature_state_values": [
+    {"multivariate_feature_option": {"value": "variant_a"}, "percentage_allocation": 10},
+    {"multivariate_feature_option": {"value": "variant_b"}, "percentage_allocation": 25}
+  ]
+}
