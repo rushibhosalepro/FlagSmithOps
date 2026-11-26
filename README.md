@@ -28,14 +28,14 @@ irm https://raw.githubusercontent.com/Flagsmith/flagsmith-cli/main/install.ps1 |
 Then run `flagsmith login`, or in CI set `FLAGSMITH_API_KEY`. Check with `flagsmith auth status`.
 
 ### 2. Install the skills with npx
-Needs Node.js 22.20 or later, and this repository published on GitHub. Replace `<owner>/<repo>` with its GitHub path.
+Needs Node.js 22.20 or later.
 ```
 # both skills, then pick your agents
-npx skills add <owner>/<repo>
+npx skills add rushibhosalepro/FlagSmithOps
 
 # one skill, one agent
-npx skills add <owner>/<repo> --skill flag-cleanup -a kiro-cli
-npx skills add <owner>/<repo> --skill flag-incident-response -a claude-code
+npx skills add rushibhosalepro/FlagSmithOps --skill flag-cleanup -a kiro-cli
+npx skills add rushibhosalepro/FlagSmithOps --skill flag-incident-response -a claude-code
 ```
 Skills install into the current project. Add `-g` to install for all projects. `kiro-cli` installs to `.kiro/skills/`, which Kiro IDE also reads. Other agent names (`cursor`, `codex`, `github-copilot` and more) are listed in the [`skills` CLI docs](https://github.com/vercel-labs/skills/blob/main/docs/agents.md).
 
