@@ -6,22 +6,25 @@ Incident description given: "Checkout is failing in production for carts with a 
 From the description: feature = checkout, symptom = failure on discount carts, environment = Production (named), project = testing. Affected identity for checks: affected-user (operator-supplied).
 
 ### $ python .kiro\skills\flag-incident-response\scripts\cli.py run --text -- auth status
-(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 4541 ms)
-```nInstance               https://api.flagsmith.com
-Identity               rushibhosale84@gmail.com
-Organisations          hacakthon (42144)
+(cwd: <demo-repo>, exit: 0, 4541 ms)
+```
+Instance               https://api.flagsmith.com
+Identity               <account-email>
+Organisations          <organisation>
 Credential source      keychain
 Access token [REDACTED]   Thu, 26 Nov 2026 15:09:00 IST
 ```
 
 ### $ python .kiro\skills\flag-incident-response\scripts\cli.py run -- flag get new_checkout -e Production --jq "keys"
-(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 1336 ms)
-```n["code_references","description","enabled","feature","identity_overrides","lifecycle_stage","segment_overrides","type","value"]
+(cwd: <demo-repo>, exit: 0, 1336 ms)
+```
+["code_references","description","enabled","feature","identity_overrides","lifecycle_stage","segment_overrides","type","value"]
 ```
 
 ## Step 1 - Find candidates
 ### $ python .kiro\skills\flag-incident-response\scripts\cli.py run -- feature list --jq ".[].name" > .fsops\flags.txt
-```nnew_checkout
+```
+new_checkout
 old_banner
 fsops_tmp_perm
 fsops_tmp_mv
@@ -29,8 +32,9 @@ fsops_tmp_override
 ```
 
 ### $ python .kiro\skills\flag-incident-response\scripts\candidates.py --repo . --keyword checkout --keyword discount --flags-file .fsops\flags.txt
-(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 614 ms)
-```n{
+(cwd: <demo-repo>, exit: 0, 614 ms)
+```
+{
   "candidates": [
     {
       "flag": "new_checkout",
@@ -57,8 +61,9 @@ fsops_tmp_override
 ### Side scenario - ambiguity on real data (vague description "the fsops thing is broken")
 
 ### $ python .kiro\skills\flag-incident-response\scripts\candidates.py --repo . --keyword fsops --flags-file .fsops\flags.txt
-(cwd: C:\Users\rushi\AppData\Local\Temp\fsops_demo_shop, exit: 0, 556 ms)
-```n{
+(cwd: <demo-repo>, exit: 0, 556 ms)
+```
+{
   "candidates": [
     {
       "flag": "fsops_tmp_mv",
@@ -111,3 +116,283 @@ Result: 3 candidates on name only, clear_winner=false, winner=null -> the skill 
 
 ## Step 2 - Resolve
 clear_winner=true for new_checkout, but confirm_with_user=true. Shown to the operator: flag new_checkout, evidence: name + 3 code references in src/checkout.js + 2 recent commits. Operator CONFIRMED new_checkout.
+
+**FAILED (bug found):** in the ambiguity scenario new_checkout scored 3 for keyword 'fsops' because the repo folder name (fsops_demo_shop) is part of each reference's file label. Still no winner, so nothing unsafe happened, but the evidence was false. Fixed (repo folder name dropped before matching). Skills refreshed with 'npx skills update'. Re-running both rankings.
+
+### $ python .kiro\skills\flag-incident-response\scripts\candidates.py --repo . --keyword fsops --flags-file .fsops\flags.txt
+(cwd: <demo-repo>, exit: 0, 402 ms)
+```
+{
+  "candidates": [
+    {
+      "flag": "fsops_tmp_mv",
+      "score": 4,
+      "evidence_kinds": 2,
+      "evidence": [
+        "name contains: fsops",
+        "1 commit(s) in the last 30 days touch the flag name"
+      ]
+    },
+    {
+      "flag": "fsops_tmp_override",
+      "score": 4,
+      "evidence_kinds": 2,
+      "evidence": [
+        "name contains: fsops",
+        "1 commit(s) in the last 30 days touch the flag name"
+      ]
+    },
+    {
+      "flag": "fsops_tmp_perm",
+      "score": 4,
+      "evidence_kinds": 2,
+      "evidence": [
+        "name contains: fsops",
+        "1 commit(s) in the last 30 days touch the flag name"
+      ]
+    }
+  ],
+  "clear_winner": false,
+  "winner": null,
+  "top_candidate": "fsops_tmp_mv",
+  "coverage_gaps": [],
+  "confirm_with_user": true,
+  "flags_checked": 5,
+  "dynamic_call_sites": 0,
+  "unsearched_languages": []
+}
+```
+
+### $ python .kiro\skills\flag-incident-response\scripts\candidates.py --repo . --keyword checkout --keyword discount --flags-file .fsops\flags.txt
+(cwd: <demo-repo>, exit: 0, 251 ms)
+```
+{
+  "candidates": [
+    {
+      "flag": "new_checkout",
+      "score": 6,
+      "evidence_kinds": 3,
+      "evidence": [
+        "name contains: checkout",
+        "code mentions: checkout (3 reference(s))",
+        "2 commit(s) in the last 30 days touch the flag name"
+      ]
+    }
+  ],
+  "clear_winner": true,
+  "winner": "new_checkout",
+  "top_candidate": "new_checkout",
+  "coverage_gaps": [],
+  "confirm_with_user": true,
+  "flags_checked": 5,
+  "dynamic_call_sites": 0,
+  "unsearched_languages": []
+}
+```
+
+### Re-run after the fix
+```
+# --keyword fsops
+{
+  "candidates": [
+    {
+      "flag": "fsops_tmp_mv",
+      "score": 4,
+      "evidence_kinds": 2,
+      "evidence": [
+        "name contains: fsops",
+        "1 commit(s) in the last 30 days touch the flag name"
+      ]
+    },
+    {
+      "flag": "fsops_tmp_override",
+      "score": 4,
+      "evidence_kinds": 2,
+      "evidence": [
+        "name contains: fsops",
+        "1 commit(s) in the last 30 days touch the flag name"
+      ]
+    },
+    {
+      "flag": "fsops_tmp_perm",
+      "score": 4,
+      "evidence_kinds": 2,
+      "evidence": [
+        "name contains: fsops",
+        "1 commit(s) in the last 30 days touch the flag name"
+      ]
+    }
+  ],
+  "clear_winner": false,
+  "winner": null,
+  "top_candidate": "fsops_tmp_mv",
+  "coverage_gaps": [],
+  "confirm_with_user": true,
+  "flags_checked": 5,
+  "dynamic_call_sites": 0,
+  "unsearched_languages": []
+}
+# --keyword checkout --keyword discount
+{
+  "candidates": [
+    {
+      "flag": "new_checkout",
+      "score": 6,
+      "evidence_kinds": 3,
+      "evidence": [
+        "name contains: checkout",
+        "code mentions: checkout (3 reference(s))",
+        "2 commit(s) in the last 30 days touch the flag name"
+      ]
+    }
+  ],
+  "clear_winner": true,
+  "winner": "new_checkout",
+  "top_candidate": "new_checkout",
+  "coverage_gaps": [],
+  "confirm_with_user": true,
+  "flags_checked": 5,
+  "dynamic_call_sites": 0,
+  "unsearched_languages": []
+}
+```
+
+## Step 2 - Resolve
+Operator CONFIRMED new_checkout (evidence: name, 3 code references in src/checkout.js, 2 recent commits). No coverage gaps.
+
+## Step 3 - Capture original state
+
+### $ python .kiro\skills\flag-incident-response\scripts\cli.py run -- environment list --jq "[.[].name]"
+(cwd: <demo-repo>, exit: 0, 997 ms)
+```
+["Development","Production"]
+```
+
+### $ python .kiro\skills\flag-incident-response\scripts\snapshot.py capture --flag new_checkout --env Production --env Development --known-envs Production,Development --out .fsops\new_checkout.snapshot.json
+(cwd: <demo-repo>, exit: 0, 2301 ms)
+```
+saved .fsops\new_checkout.snapshot.json
+  Production: enabled=True segment_overrides=0 identity_overrides=0 lifecycle_stage=new
+  Development: enabled=False segment_overrides=0 identity_overrides=0 lifecycle_stage=new
+  has_overrides=False environments_complete=True
+  note: Override counts come from the CLI (segment_overrides, identity_overrides). The overrides themselves were not captured and are never restored.
+```
+
+## Step 4 - Prepare
+
+### $ python .kiro\skills\flag-incident-response\scripts\snapshot.py restore-commands --file .fsops\new_checkout.snapshot.json --env Production
+(cwd: <demo-repo>, exit: 0, 276 ms)
+```
+{
+  "commands": [
+    [
+      "flagsmith",
+      "flag",
+      "enable",
+      "new_checkout",
+      "--environment",
+      "Production",
+      "--yes"
+    ]
+  ],
+  "notes": [
+    "Restores the environment default only (enabled state, and a plain value where one can be read).",
+    "Variants, weights, segment overrides and identity overrides are not restored. Run `snapshot.py verify` and report any difference.",
+    "The commands include --yes, which the CLI requires for writes without a terminal. Run them only after the user approves."
+  ],
+  "multivariate_detected": false
+}
+```
+
+Safety check: not a migration or payment-without-fallback path (legacyCheckout exists), state was read -> mitigation not refused.
+
+## Step 5 - Approve (references/approvals.md wording)
+Disable `new_checkout` in `Production`?
+- Evidence: name, 3 code references in src/checkout.js, 2 recent commits.
+- Change: enabled -> disabled (environment default only).
+- Other environments are not touched: Development (currently off).
+- Not affected by this change: none (0 segment, 0 identity overrides).
+- Restore: flagsmith flag enable new_checkout --environment Production --yes
+Go ahead? -> APPROVED (validation brief; operator).
+
+## Step 6 - Apply### $ python .kiro\skills\flag-incident-response\scripts\cli.py run -- flag disable new_checkout --environment Production --yes
+(exit: 0)
+```
+{
+  "feature": "new_checkout",
+  "type": "standard",
+  "description": "Demo: broken one-page checkout (incident drill)",
+  "enabled": false,
+  "value": null,
+  "segment_overrides": 0,
+  "identity_overrides": 0,
+  "code_references": 0,
+  "lifecycle_stage": "new"
+}
+```
+
+## Step 7 - Verify
+### $ python .kiro\skills\flag-incident-response\scripts\check_effect.py --flag new_checkout --env Production --identity affected-user --identity another-user
+(exit: 0)
+```
+affected-user            off  reason=STATIC
+another-user             off  reason=STATIC
+FLAG OFF for the 2 identity(ies) checked in Production
+Incident: NOT VERIFIED: ask the user to confirm the symptom is gone
+```
+
+Symptom confirmation (stand-in for the user): with new_checkout off, the demo app prints:
+```
+checkout: {"total":80,"via":"legacy"}
+banner: null
+```
+The app reads flags from a local fake client here, not from Flagsmith, so this shows the code path, not that production recovered. Limitation recorded.
+
+## Step 8 - Restore (separate approval)
+Restore `new_checkout` in Production to the snapshot (enabled)? Command: flagsmith flag enable new_checkout --environment Production --yes -> APPROVED (validation brief; operator).
+### $ python .kiro\skills\flag-incident-response\scripts\cli.py run -- flag enable new_checkout --environment Production --yes
+(exit: 0)
+```
+{
+  "feature": "new_checkout",
+  "type": "standard",
+  "description": "Demo: broken one-page checkout (incident drill)",
+  "enabled": true,
+  "value": null,
+  "segment_overrides": 0,
+  "identity_overrides": 0,
+  "code_references": 0,
+  "lifecycle_stage": "new"
+}
+```
+### $ python .kiro\skills\flag-incident-response\scripts\snapshot.py verify --file .fsops\new_checkout.snapshot.json
+(exit: 0)
+```
+MATCHES snapshot
+```
+
+## Scenario 2 - Partial mitigation (live, read-only)
+Flag fsops_tmp_override: Production default disabled earlier in the audit; an identity override keeps it ON for vip-user. This is what an incident looks like after a disable when an override exists.
+### $ python .kiro\skills\flag-incident-response\scripts\check_effect.py --flag fsops_tmp_override --env Production --identity ordinary-user --identity vip-user
+(exit: 1)
+```
+ordinary-user            off  reason=STATIC
+vip-user                 on  reason=TARGETING_MATCH; segment=identity_overrides
+PARTIAL: feature still on for vip-user
+Incident: NOT VERIFIED: ask the user to confirm the symptom is gone
+```
+Result: PARTIAL, exit 1. The skill names vip-user and does not change the override (rule: overrides are reported, never changed).
+
+## Scenario 3 - Failed CLI operation (typo in the environment name)
+### $ python .kiro\skills\flag-incident-response\scripts\check_effect.py --flag new_checkout --env Prodution --identity affected-user
+(exit: 3)
+```
+affected-user            unknown  (flagsmith exited 1: Error: environment "Prodution" not found in project <project-id>
+Run `flagsmith environment list` to see the environments in this project.)
+UNVERIFIED: could not read the flag for affected-user
+Incident: NOT VERIFIED: ask the user to confirm the symptom is gone
+```
+
+## Step 9 - Evidence and report
+evidence.md written. Meter for the whole incident run, including the side scenarios: {"calls": 15, "failed": 1, "output_bytes": 2432, "total_ms": 16602}
+The one failed call is scenario 3 (the deliberate environment typo).
