@@ -216,8 +216,7 @@ def main(argv=None):
             for note in snap["notes"]:
                 print("  note: " + note)
             return 0
-        with open(ns.file, encoding="utf-8-sig") as handle:
-            saved = json.load(handle)
+        saved = json.loads(cli.read_text(ns.file))
         if ns.command == "restore-commands":
             print(json.dumps(restore_commands(saved, ns.env), indent=2))
             return 0

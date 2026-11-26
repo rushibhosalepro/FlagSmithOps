@@ -22,6 +22,18 @@ _SECRETS = [
 ]
 
 
+def read_text(path):
+    """Read a text file an agent may have written on Windows: UTF-8, UTF-8 with BOM, or UTF-16 (PowerShell 5 `>`)."""
+    import codecs
+    with open(path, "rb") as handle:
+        data = handle.read()
+    if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        return data.decode("utf-16")
+    if data.startswith(codecs.BOM_UTF8):
+        return data[len(codecs.BOM_UTF8):].decode("utf-8")
+    return data.decode("utf-8")
+
+
 def redact(text):
     """Mask anything that looks like a Flagsmith credential."""
     for pattern in _SECRETS:

@@ -29,7 +29,11 @@ PROCEED means eligible to be presented for approval. It never skips approval for
 """
 import argparse
 import json
+import os
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from cli import read_text  # noqa: E402
 
 
 def _bool(value):
@@ -180,7 +184,7 @@ def main(argv=None):
     parser.add_argument("--input", help="JSON file (default: stdin)")
     parser.add_argument("--table", action="store_true", help="print a compact table instead of JSON")
     ns = parser.parse_args(argv)
-    raw = open(ns.input, encoding="utf-8-sig").read() if ns.input else sys.stdin.read().lstrip("\ufeff")
+    raw = read_text(ns.input) if ns.input else sys.stdin.read().lstrip("\ufeff")
     try:
         data = json.loads(raw)
     except ValueError as err:

@@ -15,7 +15,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from cli import redact  # noqa: E402
+from cli import read_text, redact  # noqa: E402
 
 
 def _list(items, empty="none"):
@@ -57,8 +57,7 @@ def main(argv=None):
     parser.add_argument("--input", required=True)
     parser.add_argument("--out", required=True)
     ns = parser.parse_args(argv)
-    with open(ns.input, encoding="utf-8-sig") as handle:
-        text = render(json.load(handle))
+    text = render(json.loads(read_text(ns.input)))
     with open(ns.out, "w", encoding="utf-8") as handle:
         handle.write(text)
     print("wrote %s" % ns.out)

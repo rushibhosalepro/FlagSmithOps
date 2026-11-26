@@ -1,0 +1,15 @@
+{
+  "feature": "fsops_tmp_mv",
+  "type": "multivariate",
+  "description": "fsops-test-multivariate",
+  "enabled": true,
+  "value": "control",
+  "segment_overrides": 0,
+  "identity_overrides": 0,
+  "code_references": 0,
+  "lifecycle_stage": "new",
+  "variants": [
+    {"id": 37085, "value": "blue", "weight": 20, "key": "blue"},
+    {"id": 37084, "value": "red", "weight": 30, "key": "red"}
+  ]
+}

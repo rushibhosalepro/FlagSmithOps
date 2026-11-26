@@ -23,6 +23,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import find_refs  # noqa: E402
+from cli import read_text  # noqa: E402  (tolerates a BOM or UTF-16 from PowerShell)
 
 
 def recent_commits(repo, flag, since_days):
@@ -109,8 +110,7 @@ def main(argv=None):
     if not os.path.isdir(ns.repo):
         sys.stderr.write("not a directory: %s\n" % ns.repo)
         return 2
-    with open(ns.flags_file, encoding="utf-8-sig") as handle:  # tolerate a BOM from PowerShell
-        flags = [line.strip() for line in handle if line.strip()]
+    flags = [line.strip() for line in read_text(ns.flags_file).splitlines() if line.strip()]
     print(json.dumps(rank(ns.repo, flags, ns.keyword, ns.since_days), indent=2))
     return 0
 

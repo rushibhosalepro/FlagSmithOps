@@ -13,7 +13,10 @@ Observed with flagsmith CLI v2.0.0 on Flagsmith Cloud, using read-only commands.
 Rules that follow:
 - `-e` accepts the environment name (tested with `Production`) or its SDK key. With no `-e`, the CLI stops with "no environment". Always pass `-e`, and pass the one the user named.
 - `enabled` in `feature list` and `feature get` is **not** an environment state. It was `false` while the environment was `true`. Only `flag get -e ENV` gives the environment state.
-- `evaluate` resolves for the identity, with overrides applied. `check_effect.py` uses it. Its `reason` field is shown in the output. Only `STATIC` has been seen. Other values are unverified.
+- `evaluate` resolves for the identity, with overrides applied. `check_effect.py` uses it. Its `reason` field is shown in the output. Seen: `STATIC`, and `TARGETING_MATCH; segment=identity_overrides` when an identity override applies.
+
+## Override case (verified)
+With the environment default disabled and an identity override enabling the flag, `evaluate` returned `enabled: true` with `reason: TARGETING_MATCH; segment=identity_overrides` for that identity. `check_effect.py` reports this as PARTIAL.
 
 ## Overrides
 `flag get` returns `segment_overrides` and `identity_overrides` as counts. `snapshot.py capture` reads them and sets `has_overrides`. Counts do not say which identities are affected. To check an identity, run `check_effect.py` for it.
@@ -25,4 +28,4 @@ Rules that follow:
 - evaluate showed the flag off for the identities checked right after the disable.
 
 ## Still unverified
-Multivariate output shape. Behaviour of disable and restore when overrides exist, and for multivariate flags. How an override shows up in `evaluate` (`reason`). How quickly the SDK API reflects a change (evaluated seconds after the write here).
+Behaviour of disable and restore when overrides exist, and for multivariate flags. Segment overrides (only identity overrides were tested). How quickly the SDK API reflects a change (evaluated seconds after the write here).

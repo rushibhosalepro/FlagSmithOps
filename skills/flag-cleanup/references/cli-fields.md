@@ -9,7 +9,7 @@ Observed with flagsmith CLI v2.0.0 on Flagsmith Cloud, using read-only commands.
 | `feature list --json`, `feature get FLAG --json` | `id`, `name`, `description`, `type`, `default_value`, `enabled`. **No tags. No archived flag.** |
 | `api /api/v1/projects/ID/features/` | paginated (`count`, `next`, `previous`, `results`). Each result has `name`, `tags` (ids), `is_archived`, `multivariate_options`, `last_modified_in_any_environment`, `num_segment_overrides`, `num_identity_overrides`, `owners`, `code_references_counts` and more |
 | `api /api/v1/projects/ID/tags/` | paginated list of project tags |
-| `evaluate FLAG --identity ID -e ENV --json` | `name`, `enabled`, `value`, `reason` (seen: `STATIC`) |
+| `evaluate FLAG --identity ID -e ENV --json` | `name`, `enabled`, `value`, `reason` (seen: `STATIC`, and `TARGETING_MATCH; segment=identity_overrides` for an identity override) |
 
 Rules that follow:
 - `-e` accepts the environment name (tested with `Production`) or its client-side SDK key. With no `-e`, the CLI stops with "no environment". Always pass `-e`.
@@ -24,7 +24,14 @@ flagsmith api /api/v1/projects/PROJECT_ID/features/ --jq '[.results[] | {name, t
 Results are paginated. If `next` is not null, read the next page. This filter cut a 1,815-byte response to 226 bytes.
 
 ## Tags and permanent flags
-`tags` holds ids. Resolve them with `flagsmith api /api/v1/projects/PROJECT_ID/tags/`. The docs say a tag is permanent when "Is permanent?" is set. The field name is unverified, because the test project has no tags. If you cannot tell whether a tag is permanent, pass `tags: null` to `verdict.py`. It will not allow PROCEED.
+`tags` holds ids. Resolve them and build the objects `verdict.py` expects:
+```
+flagsmith api /api/v1/projects/PROJECT_ID/tags/ --jq '[.results[] | {id, label, is_permanent}]'
+```
+Each tag has `is_permanent` (boolean, verified). A tag is permanent because of that attribute, not its label. Pass each tag as `{"label": ..., "is_permanent": ...}`. A permanent tag makes the verdict REFUSE. If you cannot resolve a tag id, pass the id as it is, or pass `tags: null`. `verdict.py` then treats permanence as unknown and will not allow PROCEED.
+
+## Multivariate flags
+`flag get` returns `type` (`standard` or `multivariate`, verified) and, for a multivariate flag, `variants` (each with `id`, `key`, `value`, `weight`). The features API shows the same as `multivariate_options`. Pass `multivariate: true` when `type` is not `standard`. Snapshots keep the weights, so `snapshot.py verify` reports any weight change. Restore commands do not restore variants or weights. The CLI can set weights with `flag update FLAG --weight key=pct`, but the skill does not do it for you.
 
 ## Stale
 The `Stale` tag needs a Scale-up or Enterprise plan, so it will not exist on the free plan. Use `last_modified_in_any_environment` and what the user tells you. Pass `stale: null` when staleness is not established. `lifecycle_stage` is recorded, but its possible values are unknown, so do not base a decision on it.
@@ -40,4 +47,4 @@ The `Stale` tag needs a Scale-up or Enterprise plan, so it will not exist on the
 - Archive then unarchive, and disable then enable, returned state identical to the snapshot (snapshot.py verify).
 
 ## Still unverified
-Permanent-tag field name. `lifecycle_stage` values. Multivariate output shape. How long an archived flag keeps evaluating (it was checked right after archiving). Behaviour with overrides and multivariate flags.
+`lifecycle_stage` values. Segment overrides (only identity overrides were tested). How long an archived flag keeps evaluating (it was checked right after archiving). Behaviour with overrides and multivariate flags.
