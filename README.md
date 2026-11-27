@@ -92,7 +92,8 @@ Evidence reports are written to `evidence.md` (incident) and `.flag-cleanup/` (c
 - The skills cannot see other repositories or services. Before archiving a flag, `flag-cleanup` asks you to confirm nothing else uses it.
 - Restore covers the environment default only (enabled state and a simple value). Multivariate variants and weights are not restored, and segment and identity overrides are reported but never changed. Snapshot verification shows any difference.
 - Environment coverage is checked, not assumed. Snapshots read the project's environment list from Flagsmith. The cleanup verdict and the archive gate refuse to proceed if any environment was missed, unreadable, or added, removed or renamed since the snapshot.
-- Incident disables go through a pre-write gate (`disable_gate.py`). It checks the snapshot and live state, and the wrapper refuses any other disable.
+- Incident disables go through a pre-write gate (`disable_gate.py`). It checks the snapshot and live state, and the wrapper refuses any other disable made through it.
+- The wrapper is a guard rail for an agent that follows the skill, not a security boundary. Direct `flagsmith` commands and direct Python calls bypass it. Limit what the agent can do with its Flagsmith credentials. See `docs/wrapper-limits.md`.
 - Unknown is never treated as safe. If a flag's state, tags, overrides or code search results are missing, the skill asks you instead of proceeding.
 - A successful CLI command does not prove an incident is over. The incident skill checks specific users and asks you to confirm the symptom is gone.
 - Change requests and scheduled changes (paid Flagsmith plans) are not supported.

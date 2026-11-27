@@ -58,3 +58,6 @@ The `Stale` tag needs a Scale-up or Enterprise plan, so it will not exist on the
 
 ## Still unverified
 `lifecycle_stage` values. Segment overrides (only identity overrides were tested). How long an archived flag keeps evaluating (it was checked right after archiving). Behaviour with overrides and multivariate flags.
+
+## Limits of the wrapper
+`cli.py` is a guard rail, not a security boundary. It blocks deletes, API writes and disables outside the gate only for calls made through it. Direct `flagsmith` commands, direct Python imports (`gate=True` is a plain argument), and other writes such as enable, value or archive are not blocked. See `docs/wrapper-limits.md` in the FlagSmithOps repository.

@@ -152,7 +152,7 @@ class GateTest(unittest.TestCase):
 
     def test_environment_added_since_the_snapshot(self):
         path = save(complete_snapshot())
-        self.assert_blocked(FakeFlagsmith(project=PROJECT + ["Staging"]), path, "environment list changed")
+        self.assert_blocked(FakeFlagsmith(project=PROJECT + ["Staging"]), path, "environment 'Staging' was added since the snapshot")
 
     def test_environment_renamed_since_the_snapshot(self):
         path = save(complete_snapshot())
@@ -180,6 +180,54 @@ class GateTest(unittest.TestCase):
     def test_empty_environment_name(self):
         for env in ("", "  ", None):
             self.assertEqual(disable_gate.validate(FLAG, env, save(complete_snapshot()), runner=FakeFlagsmith())[0], ["no environment named"])
+
+
+class EnvironmentMappingTest(unittest.TestCase):
+    """The live check compares the full saved and current name-to-id mapping, not just the target."""
+
+    def setUp(self):
+        self.path = save(complete_snapshot())            # Development=1, Production=2
+
+    def run_gate(self, list_value):
+        fake = FakeFlagsmith(list_value=list_value)
+        status, problems, _ = disable_gate.disable(FLAG, ENV, self.path, runner=fake)
+        return status, problems, fake
+
+    def test_non_target_environment_id_changed(self):
+        status, problems, fake = self.run_gate([{"id": 7, "name": "Development"}, {"id": 2, "name": "Production"}])
+        self.assertEqual(status, "blocked")
+        self.assertTrue(any("'Development' has a different id than in the snapshot (1, now 7)" in p for p in problems), problems)
+        self.assertEqual(fake.writes(), [])
+
+    def test_environment_deleted_and_recreated_with_the_same_name(self):
+        # Same names as before; Development was deleted and recreated, so Flagsmith gave it a new id.
+        status, problems, fake = self.run_gate([{"id": 2, "name": "Production"}, {"id": 31, "name": "Development"}])
+        self.assertEqual(status, "blocked")
+        self.assertTrue(any("deleted and recreated" in p for p in problems), problems)
+        self.assertEqual(fake.writes(), [])
+
+    def test_multiple_environment_ids_changed(self):
+        status, problems, fake = self.run_gate([{"id": 11, "name": "Development"}, {"id": 12, "name": "Production"}])
+        self.assertEqual(status, "blocked")
+        changed = [p for p in problems if "has a different id" in p]
+        self.assertEqual(len(changed), 2, problems)
+        self.assertEqual(fake.writes(), [])
+
+    def test_no_state_is_read_once_the_mapping_differs(self):
+        _, _, fake = self.run_gate([{"id": 7, "name": "Development"}, {"id": 2, "name": "Production"}])
+        self.assertFalse(any(a[:2] == ["flag", "get"] for a, _ in fake.calls))
+
+    def test_unchanged_complete_mapping_is_allowed(self):
+        status, problems, fake = self.run_gate([{"id": 1, "name": "Development"}, {"id": 2, "name": "Production"}])
+        self.assertEqual((status, problems), ("disabled", []))
+        self.assertEqual(len(fake.writes()), 1)
+
+    def test_compare_environments_directly(self):
+        saved = [{"id": 1, "name": "Development"}, {"id": 2, "name": "Production"}]
+        self.assertEqual(disable_gate.compare_environments(saved, [{"id": 1, "name": "Development"}, {"id": 2, "name": "Production"}]), [])
+        self.assertTrue(disable_gate.compare_environments(saved, [{"id": 2, "name": "Production"}]))
+        self.assertTrue(disable_gate.compare_environments(None, [{"id": 1, "name": "Development"}]))
+        self.assertTrue(disable_gate.compare_environments(["x"], [{"id": 1, "name": "Development"}]))
 
 
 class CheckModeTest(unittest.TestCase):

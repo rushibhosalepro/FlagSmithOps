@@ -34,7 +34,7 @@ Find the flag behind a broken feature, switch it off safely, prove what changed,
 
 **5. Approve.** Use the wording in `references/approvals.md`. Wait for a clear yes.
 
-**6. Apply.** `python scripts/disable_gate.py --flag NAME --env ENV --snapshot .fsops/NAME.snapshot.json --execute`. This is the only way to disable: the wrapper refuses `flag disable`. The gate re-checks the snapshot and live state, then disables. BLOCKED (exit 3) means nothing was written: stop and report the reasons. Do not retry another way, and do not ask the user to accept the gap.
+**6. Apply.** `python scripts/disable_gate.py --flag NAME --env ENV --snapshot .fsops/NAME.snapshot.json --execute`. Disable only this way. The wrapper refuses `flag disable` made through it, but it cannot stop a direct `flagsmith` call, so never make one. The gate re-checks the snapshot and live state, then disables. BLOCKED (exit 3) means nothing was written: stop and report the reasons. Do not retry another way, and do not ask the user to accept the gap.
 
 **7. Verify.** Read the new state with `python scripts/cli.py run -- flag get NAME -e ENV --jq .enabled`. Then run `python scripts/check_effect.py --flag NAME --env ENV --identity AFFECTED [--identity OVERRIDE_USER]`. `--env` is required, so you never check the wrong environment. Include an identity covered by each override you know of. FLAG OFF means only that those identities see the flag off. PARTIAL means someone still sees the feature: name them. UNVERIFIED means you could not tell. The script always prints `Incident: NOT VERIFIED`. Never tell the user the incident is resolved. Ask them to confirm the symptom is gone, because you cannot see that from the CLI.
 

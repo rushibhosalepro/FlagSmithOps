@@ -110,6 +110,8 @@ def disable_reason(args):
 
 
 def run(args, binary=None, meter_file=None, expect_json=True, timeout=120, gate=False):
+    # gate=True is a plain argument, not a secret: any caller can pass it. It marks calls made by disable_gate.py
+    # after its checks. This wrapper is a guard rail for an agent following the skill, not a security boundary.
     """Run `flagsmith <args>`. Returns parsed JSON (or text when expect_json is False).
 
     Always adds --no-input. Adds --json when expect_json and neither --json nor --jq is given.

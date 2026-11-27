@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Pre-write gate for the incident mitigation. The only supported way to disable a flag.
+"""Pre-write gate for the incident mitigation. The skill's only supported way to disable a flag.
+(A guard rail, not a security boundary: see docs/wrapper-limits.md.)
 
 Validates the snapshot, re-checks live state, and only then disables the environment default.
 Any failed condition stops before the write. There are no warnings: a problem is a stop.
@@ -9,7 +10,8 @@ Any failed condition stops before the write. There are no warnings: a problem is
 
 Policy (incident workflow): the snapshot must be for this flag, cover every environment of the project
 (environments_complete true, with an environment list), include ENV with a boolean enabled state that is
-currently on, and live state must still match it. ENV must still exist under the same id.
+currently on, and live state must still match it. Every environment must keep the same name and id as in the
+snapshot (an environment deleted and recreated under the same name gets a new id, and that blocks too).
 
 Exit codes: 0 valid (check) or disabled (execute), 3 blocked by the gate (no write), 2 CLI or file error.
 """
@@ -68,21 +70,37 @@ def check_snapshot(snap, flag, env):
     return problems
 
 
+def compare_environments(saved, current):
+    """Problems if the saved and current name-to-id mappings differ in any way, for every environment."""
+    if not isinstance(saved, list) or not all(isinstance(e, dict) for e in saved):
+        return ["snapshot has no usable project environment list"]
+    before = {e.get("name"): e.get("id") for e in saved}
+    after = {e["name"]: e["id"] for e in current}
+    problems = []
+    for name in sorted(set(before) | set(after), key=str):
+        if name not in after:
+            problems.append("environment %r is gone since the snapshot (deleted or renamed)" % name)
+        elif name not in before:
+            problems.append("environment %r was added since the snapshot" % name)
+        elif before[name] != after[name]:
+            problems.append("environment %r has a different id than in the snapshot (%r, now %r): deleted and recreated?"
+                            % (name, before[name], after[name]))
+    if problems:
+        problems.append("environment mapping changed since the snapshot. Capture again.")
+    return problems
+
+
 def check_live(snap, flag, env, runner):
     """Problems found by re-reading Flagsmith (read-only)."""
     problems = []
     current, error = snapshot.discover_environments(runner)
     if current is None:
         return ["current " + error]
-    saved_ids = {e.get("name"): e.get("id") for e in snap.get("project_environments") or [] if isinstance(e, dict)}
-    now = {e["name"]: e["id"] for e in current}
-    if env not in now:
+    problems.extend(compare_environments(snap.get("project_environments"), current))
+    if env not in {e["name"] for e in current}:
         problems.append("environment %r no longer exists (or was renamed)" % env)
-        return problems
-    if saved_ids.get(env) != now[env]:
-        problems.append("environment %r has a different id than in the snapshot" % env)
-    if set(now) != set(saved_ids):
-        problems.append("environment list changed since the snapshot (now: %s). Capture again." % ", ".join(sorted(now)))
+    if problems:
+        return problems  # do not read state from an environment that may not be the one in the snapshot
     live = snapshot.enabled_state(runner(["flag", "get", flag, "--environment", env]))
     expected = snapshot.enabled_state(snap["environments"][env]["default"])
     if live is None:

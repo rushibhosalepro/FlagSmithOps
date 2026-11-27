@@ -38,3 +38,6 @@ Only then does it run `flag disable NAME --environment ENV --yes` and read the n
 
 ## Still unverified
 Behaviour of disable and restore when overrides exist, and for multivariate flags. Segment overrides (only identity overrides were tested). How quickly the SDK API reflects a change (evaluated seconds after the write here).
+
+## Limits of the wrapper
+`cli.py` is a guard rail, not a security boundary. It blocks deletes, API writes and disables outside the gate only for calls made through it. Direct `flagsmith` commands, direct Python imports (`gate=True` is a plain argument), and other writes such as enable, value or archive are not blocked. See `docs/wrapper-limits.md` in the FlagSmithOps repository.
