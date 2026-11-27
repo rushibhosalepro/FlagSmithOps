@@ -88,7 +88,7 @@ You can also invoke a skill directly: `/flag-cleanup` or `/flag-incident-respons
 Evidence reports are written to `evidence.md` (incident) and `.flag-cleanup/` (cleanup). They never contain credentials.
 
 ## Try it on a live demo
-The [`examples/demo-shop`](examples/demo-shop/) app is the one the skills were validated on against live Flagsmith. Its README has the setup commands for a disposable project, the prompts for each drill, the expected result, and a link to the recorded run, so you can repeat the tests and compare.
+The [`examples/demo-shop`](examples/demo-shop/) app is the one the skills were validated on against live Flagsmith. Its README has the setup commands for a disposable project, the prompts for each drill, the expected result, and a link to the recorded run, so you can repeat the tests and compare. [`examples/notes-service`](examples/notes-service/) runs both skills in sequence on one flag (incident, fix, cleanup) and includes the blind spots the skills must report.
 
 ## Limits you should know
 - Code search covers JavaScript, TypeScript and Python. Other languages are reported as not searched.

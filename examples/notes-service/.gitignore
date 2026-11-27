@@ -1,0 +1,5 @@
+node_modules/
+.fsops/
+.flag-cleanup/*.tmp
+flagsmith.json
+__pycache__/

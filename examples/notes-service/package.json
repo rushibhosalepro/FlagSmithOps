@@ -1,0 +1,12 @@
+{
+  "name": "flagsmithops-notes-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Notes service for running both FlagSmithOps skills in sequence: an incident, then a cleanup.",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "test": "node --test test/notes.test.js"
+  },
+  "license": "MIT"
+}
