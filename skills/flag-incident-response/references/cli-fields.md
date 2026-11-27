@@ -27,5 +27,14 @@ With the environment default disabled and an identity override enabling the flag
 - lag disable returns the new flag state. Disable then lag enable returned state identical to the snapshot (snapshot.py verify).
 - evaluate showed the flag off for the identities checked right after the disable.
 
+## Pre-write gate (`scripts/disable_gate.py`)
+Run with `--snapshot` in check mode before asking for approval, then with `--execute` after approval. It stops (exit 3, no write) unless every condition holds:
+1. The snapshot exists, is readable JSON, and is for the requested flag.
+2. It covers every environment. `environments_complete` must be true, it must have the project's environment list, and every listed environment must be captured with a boolean `enabled`. The gate recomputes this from the contents, so editing the flag does not help.
+3. The requested environment is in that list and in the snapshot, with a boolean `enabled` that is `true` (already off means there is nothing to disable).
+4. Live check (read-only): the current environment list matches the snapshot (same names and ids), and the flag's current state in the target environment equals the snapshot.
+
+Only then does it run `flag disable NAME --environment ENV --yes` and read the new state back. `cli.py` refuses `flag disable` and `flag update --disable` from any other caller, including `python scripts/cli.py run`. Exit codes: 0 valid or disabled, 3 blocked, 2 CLI or file error.
+
 ## Still unverified
 Behaviour of disable and restore when overrides exist, and for multivariate flags. Segment overrides (only identity overrides were tested). How quickly the SDK API reflects a change (evaluated seconds after the write here).

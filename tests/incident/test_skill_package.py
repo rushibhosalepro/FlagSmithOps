@@ -54,6 +54,12 @@ class PackageTest(unittest.TestCase):
         with open(os.path.join(SKILL, "SKILL.md"), encoding="utf-8") as handle:
             text = handle.read()
         self.assertIn("`feature get` and `feature list` show a project-level default", text)
+    def test_disable_only_through_the_gate(self):
+        with open(os.path.join(SKILL, "SKILL.md"), encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertNotIn("run -- flag disable", text)
+        self.assertIn("disable_gate.py --flag NAME --env ENV --snapshot .fsops/NAME.snapshot.json --execute", text)
+        self.assertIn("A BLOCKED result is a stop, not a warning", text)
 
 if __name__ == "__main__":
     unittest.main()

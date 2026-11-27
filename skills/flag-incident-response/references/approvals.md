@@ -3,6 +3,7 @@
 An approval covers only the action shown. Accept a clear yes. Silence or "maybe" is not approval.
 
 ## Disable
+Ask only after `disable_gate.py` (check mode) printed VALID.
 ```
 Disable `NAME` in `ENV`?
 - Evidence: <one line>.

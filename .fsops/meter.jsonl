@@ -2,3 +2,4 @@
 {"args": ["feature", "delete", "x", "--json"], "exit": -1, "bytes": 0, "ms": 0, "blocked": true}
 {"args": ["feature", "delete", "x", "--json"], "exit": -1, "bytes": 0, "ms": 0, "blocked": true}
 {"args": ["feature", "delete", "x", "--json"], "exit": -1, "bytes": 0, "ms": 0, "blocked": true}
+{"args": ["flag", "disable", "new_checkout", "--environment", "Production", "--yes", "--json"], "exit": 0, "bytes": 18, "ms": 0}

@@ -100,13 +100,22 @@ def blocked_reason(args):
     return None
 
 
-def run(args, binary=None, meter_file=None, expect_json=True, timeout=120):
+def disable_reason(args):
+    """Why the agent-facing wrapper refuses this call, or None. Disables go through disable_gate.py."""
+    words = _command_words(args)
+    args = [str(a) for a in args]
+    if words[:2] == ["flag", "disable"] or (words[:2] == ["flag", "update"] and "--disable" in args):
+        return "disables must go through scripts/disable_gate.py, which validates the snapshot first"
+    return None
+
+
+def run(args, binary=None, meter_file=None, expect_json=True, timeout=120, gate=False):
     """Run `flagsmith <args>`. Returns parsed JSON (or text when expect_json is False).
 
     Always adds --no-input. Adds --json when expect_json and neither --json nor --jq is given.
     Raises CliError on a non-zero exit, a timeout, or output that is not JSON.
     """
-    reason = blocked_reason(args)
+    reason = blocked_reason(args) or (None if gate else disable_reason(args))
     if reason:
         _meter(meter_file or os.environ.get("FSOPS_METER_FILE", DEFAULT_METER),
                {"args": [redact(str(a)) for a in args], "exit": -1, "bytes": 0, "ms": 0, "blocked": True})

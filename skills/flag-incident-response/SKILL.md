@@ -11,6 +11,7 @@ Find the flag behind a broken feature, switch it off safely, prove what changed,
 ## Rules
 - Never write before the user approves the exact action: which flag, which environment, from what to what.
 - Change one flag in one named environment. Never disable several flags "to be safe".
+- Disable only through `scripts/disable_gate.py`. A BLOCKED result is a stop, not a warning. Incomplete environment coverage is never accepted.
 - If more than one flag could be responsible and the evidence cannot separate them, stop and ask.
 - Never delete or archive a flag. Disabling the environment default is the only mitigation.
 - A successful command does not prove the incident is over. Verify, and say what you could not verify.
@@ -29,11 +30,11 @@ Find the flag behind a broken feature, switch it off safely, prove what changed,
 
 **3. Capture original state.** Run `python scripts/snapshot.py capture --flag NAME --out .fsops/NAME.snapshot.json`. It reads the project's environment list itself and captures every environment, so you can show the others are untouched. If it prints a WARNING about coverage, tell the user. If the project uses segments, ask the user which ones could matter and pass `--segment-ids`.
 
-**4. Prepare.** Check mitigation is safe. REFUSE and explain if disabling could cause harm (for example the flag guards a data migration or a payment path with no fallback), or if the state could not be read. Otherwise show: flag, environment, change (on to off), expected effect, who may still see the feature (overrides), and the restore commands from `python scripts/snapshot.py restore-commands --file .fsops/NAME.snapshot.json --env ENV`.
+**4. Prepare.** Check mitigation is safe. REFUSE and explain if disabling could cause harm (for example the flag guards a data migration or a payment path with no fallback), or if the state could not be read. Otherwise show: flag, environment, change (on to off), expected effect, who may still see the feature (overrides), and the restore commands from `python scripts/snapshot.py restore-commands --file .fsops/NAME.snapshot.json --env ENV`. Then run the gate in check mode: `python scripts/disable_gate.py --flag NAME --env ENV --snapshot .fsops/NAME.snapshot.json`. If it prints BLOCKED (exit 3), stop: show the reasons, fix them (usually capture again), and do not ask for approval until it prints VALID.
 
 **5. Approve.** Use the wording in `references/approvals.md`. Wait for a clear yes.
 
-**6. Apply.** `python scripts/cli.py run -- flag disable NAME --environment ENV --yes`. The CLI refuses writes without `--yes` when it cannot prompt, so pass it only now, after the user approved this exact action. On any failure, stop and show the error. Do not retry with other options.
+**6. Apply.** `python scripts/disable_gate.py --flag NAME --env ENV --snapshot .fsops/NAME.snapshot.json --execute`. This is the only way to disable: the wrapper refuses `flag disable`. The gate re-checks the snapshot and live state, then disables. BLOCKED (exit 3) means nothing was written: stop and report the reasons. Do not retry another way, and do not ask the user to accept the gap.
 
 **7. Verify.** Read the new state with `python scripts/cli.py run -- flag get NAME -e ENV --jq .enabled`. Then run `python scripts/check_effect.py --flag NAME --env ENV --identity AFFECTED [--identity OVERRIDE_USER]`. `--env` is required, so you never check the wrong environment. Include an identity covered by each override you know of. FLAG OFF means only that those identities see the flag off. PARTIAL means someone still sees the feature: name them. UNVERIFIED means you could not tell. The script always prints `Incident: NOT VERIFIED`. Never tell the user the incident is resolved. Ask them to confirm the symptom is gone, because you cannot see that from the CLI.
 

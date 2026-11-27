@@ -13,7 +13,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SHARED = os.path.join(ROOT, "shared", "scripts")
 SKILLS = {
     "flag-cleanup": ["cli.py", "snapshot.py", "find_refs.py", "verdict.py", "evidence.py"],
-    "flag-incident-response": ["cli.py", "snapshot.py", "find_refs.py", "candidates.py", "check_effect.py", "evidence.py"],
+    "flag-incident-response": ["cli.py", "snapshot.py", "find_refs.py", "candidates.py", "check_effect.py", "evidence.py", "disable_gate.py"],
 }
 
 

@@ -149,3 +149,28 @@ Fix:
 | Live, read-only: full capture is complete, Production-only capture is incomplete, verify matches the full one and blocks the partial one | VERIFIED |
 | Live: an environment added or renamed in Flagsmith | NOT TESTED (needs creating or renaming an environment). Covered by unit tests with the observed `environment list` shape |
 | Kiro runs with the new gate | NOT TESTED |
+
+## Addendum: incident pre-write gate
+
+Root cause: step 6 ran `cli.py run -- flag disable` directly. No script linked that write to the snapshot, so an agent could disable with no snapshot, a snapshot of another flag or environment, an unknown state, or incomplete coverage. Before the fix, `cli.py run -- flag disable` with no snapshot launched the CLI (probe, CLI process mocked).
+
+Fix: `scripts/disable_gate.py` validates the snapshot, recomputes coverage from its contents, re-checks the live environment list (names and ids) and the target's live state, and only then disables. `cli.py` refuses `flag disable` and `flag update --disable` unless called by the gate. BLOCKED (exit 3) is a stop with no write.
+
+| Check | Status |
+|---|---|
+| 26 gate tests and 1 package test. Every blocked case asserts zero write calls. The 4 wrapper tests fail against the previous `cli.py` | VERIFIED |
+| Live demo (read-only, Flagsmith Cloud). 6 invalid snapshots run with `--execute` were all blocked. A valid snapshot passed in check mode. An ungated wrapper disable was refused. 0 write calls reached Flagsmith, and Production is unchanged | VERIFIED |
+| Live `--execute` with a valid snapshot (a real disable) | NOT TESTED in this round (no approval for a write). Covered by unit tests |
+| Kiro runs with the gate | NOT TESTED |
+
+```
+missing file            exit 3  BLOCKED: nothing was written | - snapshot missing or unreadable: <tmp>\nope.json (FileNotFoundError)
+corrupt file            exit 3  BLOCKED: nothing was written | - snapshot missing or unreadable: <tmp>\corrupt.json (JSONDecodeError)
+wrong flag              exit 3  BLOCKED: nothing was written | - snapshot is for flag 'old_banner', not 'new_checkout'
+wrong environment       exit 3  BLOCKED: nothing was written | - environment 'Prodution' is not in the project's environment list in the snapshot | - environment 'Prodution' is not in the snapshot
+unknown target state    exit 3  BLOCKED: nothing was written | - enabled state unknown in the snapshot for: Production | - enabled state of 'new_checkout' in 'Production' is unknown in the snapshot
+incomplete coverage     exit 3  BLOCKED: nothing was written | - snapshot does not cover every environment (not captured: Development). Capture again with no --env. | - snapshot is missing environments from its own list: Development
+VALID snapshot, check   exit 0  VALID: new_checkout can be disabled in Production after approval
+ungated wrapper disable exit 2  blocked by FlagSmithOps: disables must go through scripts/disable_gate.py, which validates the snapshot first
+meter: calls=3 blocked-before-CLI=1 write calls that reached Flagsmith=0
+```
