@@ -1,0 +1,12 @@
+{
+  "name": "flagsmith-demo-shop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tiny demo shop for testing the FlagSmithOps agent skills (flag-cleanup, flag-incident-response).",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "test": "node --test test/shop.test.js"
+  },
+  "license": "MIT"
+}
