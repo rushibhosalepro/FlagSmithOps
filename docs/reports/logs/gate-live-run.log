@@ -1,0 +1,107 @@
+# Live disable and restore through the gate
+Date: 2026-11-27 08:20 local. CLI: flagsmith v2.0.0. Flagsmith Cloud test project.
+Flag: fsops_tmp_perm (disposable, created for these tests, read by no app). Environment: Production of the test project.
+Approval: one disable and one restore of a disposable flag, given in the task brief. Scripts from skills/flag-incident-response/scripts at commit 8cbc0e8.
+
+## 1. Capture the original state
+
+### $ python d:\projects\hackathon-week\flagsmith\FlagSmithOps\skills\flag-incident-response\scripts\snapshot.py capture --flag fsops_tmp_perm --out .fsops\fsops_tmp_perm.snapshot.json
+(exit: 0, 3389 ms)
+```
+saved .fsops\fsops_tmp_perm.snapshot.json
+  Development: enabled=True segment_overrides=0 identity_overrides=0 lifecycle_stage=permanent
+  Production: enabled=True segment_overrides=0 identity_overrides=0 lifecycle_stage=permanent
+  has_overrides=False environments_complete=True
+  note: Override counts come from the CLI (segment_overrides, identity_overrides). The overrides themselves were not captured and are never restored.
+```
+
+## 2. Gate check mode (no write)
+
+### $ python d:\projects\hackathon-week\flagsmith\FlagSmithOps\skills\flag-incident-response\scripts\disable_gate.py --flag fsops_tmp_perm --env Production --snapshot .fsops\fsops_tmp_perm.snapshot.json
+(exit: 0, 1730 ms)
+```
+VALID: fsops_tmp_perm can be disabled in Production after approval
+```
+
+## 3. Execute one disable through the gate
+
+### $ python d:\projects\hackathon-week\flagsmith\FlagSmithOps\skills\flag-incident-response\scripts\disable_gate.py --flag fsops_tmp_perm --env Production --snapshot .fsops\fsops_tmp_perm.snapshot.json --execute
+(exit: 0, 4178 ms)
+```
+DISABLED fsops_tmp_perm in Production. enabled now: False
+```
+
+## 4. Verify the disabled state
+
+### $ python d:\projects\hackathon-week\flagsmith\FlagSmithOps\skills\flag-incident-response\scripts\cli.py run -- flag get fsops_tmp_perm -e Production --jq .enabled
+(exit: 0, 1326 ms)
+```
+false
+```
+
+### $ python d:\projects\hackathon-week\flagsmith\FlagSmithOps\skills\flag-incident-response\scripts\cli.py run -- flag get fsops_tmp_perm -e Development --jq .enabled
+(exit: 0, 1040 ms)
+```
+true
+```
+
+### $ python d:\projects\hackathon-week\flagsmith\FlagSmithOps\skills\flag-incident-response\scripts\check_effect.py --flag fsops_tmp_perm --env Production --identity live-check-user
+(exit: 0, 564 ms)
+```
+live-check-user          off  reason=STATIC
+FLAG OFF for the 1 identity(ies) checked in Production
+Incident: NOT VERIFIED: ask the user to confirm the symptom is gone
+```
+
+## 5. Restore the original state (command generated from the snapshot)
+
+### $ python d:\projects\hackathon-week\flagsmith\FlagSmithOps\skills\flag-incident-response\scripts\snapshot.py restore-commands --file .fsops\fsops_tmp_perm.snapshot.json --env Production
+(exit: 0, 516 ms)
+```
+{
+  "commands": [
+    [
+      "flagsmith",
+      "flag",
+      "enable",
+      "fsops_tmp_perm",
+      "--environment",
+      "Production",
+      "--yes"
+    ]
+  ],
+  "notes": [
+    "Restores the environment default only (enabled state, and a plain value where one can be read).",
+    "Variants, weights, segment overrides and identity overrides are not restored. Run `snapshot.py verify` and report any difference.",
+    "The commands include --yes, which the CLI requires for writes without a terminal. Run them only after the user approves."
+  ],
+  "multivariate_detected": false
+}
+```
+
+### $ python d:\projects\hackathon-week\flagsmith\FlagSmithOps\skills\flag-incident-response\scripts\cli.py run -- flag enable fsops_tmp_perm --environment Production --yes
+(exit: 0, 2121 ms)
+```
+{
+  "feature": "fsops_tmp_perm",
+  "type": "standard",
+  "description": "fsops-test-permanent",
+  "enabled": true,
+  "value": null,
+  "segment_overrides": 0,
+  "identity_overrides": 0,
+  "code_references": 0,
+  "lifecycle_stage": "permanent"
+}
+```
+
+## 6. Verify the snapshot matches
+
+### $ python d:\projects\hackathon-week\flagsmith\FlagSmithOps\skills\flag-incident-response\scripts\snapshot.py verify --file .fsops\fsops_tmp_perm.snapshot.json
+(exit: 0, 3410 ms)
+```
+MATCHES snapshot
+```
+
+## Meter
+Meter for the whole run: 16 CLI calls, 0 failed, 2 write calls: flag disable fsops_tmp_perm --environment Production --yes (exit 0); flag enable fsops_tmp_perm --environment Production --yes --json (exit 0)

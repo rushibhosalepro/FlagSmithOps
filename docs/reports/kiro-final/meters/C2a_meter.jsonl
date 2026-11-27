@@ -1,0 +1,5 @@
+{"args": ["environment", "list"], "exit": 0, "bytes": 1226, "ms": 792}
+{"args": ["flag", "get", "old_banner", "--environment", "Development"], "exit": 0, "bytes": 263, "ms": 1801}
+{"args": ["flag", "get", "old_banner", "--environment", "Production"], "exit": 0, "bytes": 263, "ms": 2001}
+{"args": ["config"], "exit": 0, "bytes": 539, "ms": 42}
+{"args": ["api", "/api/v1/projects/<project-id>/features/", "--jq", ".results[] | select(.name==\"old_banner\") | {name,is_archived,id}"], "exit": 0, "bytes": 54, "ms": 752}
