@@ -24,11 +24,11 @@ Take a flag from "probably obsolete" to "code removed, PR merged, flag archived"
 
 **1. Candidates.** `feature list` has no tags or archived flag, so read features with `python scripts/cli.py run -- api /api/v1/projects/PROJECT_ID/features/` and the `--jq` filter in `references/cli-fields.md`. Follow `next` if results are paginated. Skip archived features and say so. If the user named flags, use only those.
 
-**2. Inspect.** List environment names once with `python scripts/cli.py run -- environment list --jq "[.[].name]"`. For each candidate then run `python scripts/snapshot.py capture --flag NAME --env ENV [--env ENV2] --known-envs ENV,ENV2,... --out .flag-cleanup/NAME.snapshot.json`. It reads the flag in every environment and prints one line each (enabled=unknown means the state could not be read). Tell the user about any WARNING for environments not captured. Note whether the flag is multivariate.
+**2. Inspect.** For each candidate run `python scripts/snapshot.py capture --flag NAME --out .flag-cleanup/NAME.snapshot.json`. It reads the project's environment list from the CLI and captures the flag in every environment. `environments_complete` is true only if every environment was captured with a readable state. A WARNING means coverage is incomplete or unknown: tell the user, fix it, and capture again. Note whether the flag is multivariate.
 
 **3. Search code.** Run `python scripts/find_refs.py --repo . [--repo OTHER] --flag NAME --summary`. It reports SDK calls, other mentions, dynamic calls that could read any flag, and languages it did not search (`references/patterns.md`).
 
-**4. Decide.** Write one JSON object per candidate to `.fsops/candidates.json` (fields in `scripts/verdict.py`; take `has_overrides` from the snapshot), then run `python scripts/verdict.py --input .fsops/candidates.json --table`. Show the user the table. Ask the questions it returns, for example which code path to keep. Re-run with their answers in `user.kept_behavior` and `user.other_usage`.
+**4. Decide.** Write one JSON object per candidate to `.fsops/candidates.json` (fields in `scripts/verdict.py`). Set `snapshot` to the flag's snapshot file and copy `environments`, `environments_complete` and `has_overrides` from it. The verdict reads the snapshot and will not PROCEED if they differ or coverage is incomplete, then run `python scripts/verdict.py --input .fsops/candidates.json --table`. Show the user the table. Ask the questions it returns, for example which code path to keep. Re-run with their answers in `user.kept_behavior` and `user.other_usage`.
 - REFUSE: stop for that flag and explain why.
 - APPROVAL REQUIRED: resolve the reasons with the user. Do not guess.
 - PROCEED: eligible. Still present the plan for approval (step 5).
@@ -43,7 +43,7 @@ Take a flag from "probably obsolete" to "code removed, PR merged, flag archived"
 **8. After the merge (resume).** In a new session, read `.flag-cleanup/` on the default branch to find flags awaiting archive. Do not trust the files. Re-check live:
 - `gh pr view --json state,mergedAt` shows merged. If not, block the archive. This gate has no override: do not offer to archive before the merge, even if the user insists.
 - `python scripts/find_refs.py` on the default branch shows no references left.
-- `python scripts/snapshot.py verify --file .flag-cleanup/NAME.snapshot.json` matches.
+- `python scripts/snapshot.py verify --file .flag-cleanup/NAME.snapshot.json` matches. It also compares the current environment list with the snapshot: an incomplete snapshot or an environment added, removed or renamed since then blocks the archive. Capture again, review with the user, and re-run the gate.
 - Ask the user to confirm no other repository, service or client uses the flag. If they cannot, block the archive.
 
 **9. Archive.** After approval for each flag: `python scripts/cli.py run -- feature update NAME --archive --yes` (the CLI requires `--yes` when it cannot prompt, so pass it only after approval). Confirm with `api /api/v1/projects/ID/features/ --jq` that `is_archived` is true. Then run `python scripts/cli.py run -- evaluate NAME --identity cleanup-check -e ENV` and report what you see. Observed so far: an archived flag still evaluates with its previous state, so apps that still read it keep working. Restore: `flagsmith feature update NAME --unarchive --yes`.

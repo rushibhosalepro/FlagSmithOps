@@ -46,5 +46,15 @@ The `Stale` tag needs a Scale-up or Enterprise plan, so it will not exist on the
 - An archived flag still evaluates (evaluate returned the same state) and lag get still works. The default eature list hides archived features. --include-archived shows them.
 - Archive then unarchive, and disable then enable, returned state identical to the snapshot (snapshot.py verify).
 
+## Environment coverage gate
+`snapshot.py capture` reads `environment list` itself and records `project_environments` (ids and names only, never keys). With no `--env` it captures every environment. `environments_complete` is:
+- `true` only if the list was read, every listed environment was captured, and each has a boolean `enabled`;
+- `false` if an environment is missing, a captured name is not in the list, `--known-envs` disagrees with the list, or a state is unreadable (`coverage_problems` says which);
+- `null` if the list could not be read or had an unexpected shape.
+
+`verdict.py` needs `snapshot` (the file path) to PROCEED. It loads it and requires `environments_complete: true`, and the candidate's `environments`, `environments_complete` and `has_overrides` must match it exactly.
+
+`snapshot.py verify` fails (exit 1) if the snapshot is incomplete or has no environment list, if the current list cannot be read, or if an environment was added, removed or renamed since the snapshot (detected by environment id). The cleanup archive gate uses it, so any of these blocks the archive.
+
 ## Still unverified
 `lifecycle_stage` values. Segment overrides (only identity overrides were tested). How long an archived flag keeps evaluating (it was checked right after archiving). Behaviour with overrides and multivariate flags.

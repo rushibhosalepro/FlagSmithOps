@@ -12,7 +12,7 @@ def rec(name):
 
 
 def capture(raw):
-    return snapshot.capture(raw.get("feature", "f"), ["Production"], runner=lambda a: copy.deepcopy(raw))
+    return snapshot.capture(raw.get("feature", "f"), ["Production"], runner=_paths.env_aware(lambda a: copy.deepcopy(raw), ["Production"]))
 
 
 class RealMultivariateTest(unittest.TestCase):
@@ -26,7 +26,7 @@ class RealMultivariateTest(unittest.TestCase):
         snap = capture(rec("flag_get_multivariate.json"))
         changed = rec("flag_get_multivariate.json")
         changed["variants"][1]["weight"] = 40
-        problems = snapshot.verify(snap, runner=lambda a: copy.deepcopy(changed))
+        problems = snapshot.verify(snap, runner=_paths.env_aware(lambda a: copy.deepcopy(changed), ["Production"]))
         self.assertEqual(problems, ["Production.default.variants[1].weight: 30 != 40"])
 
     def test_restore_does_not_claim_to_restore_weights(self):
@@ -63,7 +63,8 @@ class RealPermanentTagTest(unittest.TestCase):
                 "environments": {"Production": {"enabled": True}}, "production_environment": "Production",
                 "environments_complete": True, "has_overrides": False,
                 "references": {"sdk_calls": 1, "other_literals": 0, "dynamic_call_sites": 0, "unsearched_languages": []},
-                "user": {"kept_behavior": "on", "other_usage": "none"}}
+                "user": {"kept_behavior": "on", "other_usage": "none"},
+                "snapshot": _paths.make_snapshot(flag="x", states={"Production": True})}
 
     def test_the_real_tag_object_has_is_permanent(self):
         self.assertIs(rec("tags_list.json")[0]["is_permanent"], True)

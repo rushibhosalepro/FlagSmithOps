@@ -14,7 +14,7 @@ def recorded(name):
 
 
 def capture_with(raw_by_env):
-    return snapshot.capture("new_checkout", list(raw_by_env), runner=lambda a: copy.deepcopy(raw_by_env[a[a.index("--environment") + 1]]))
+    return snapshot.capture("new_checkout", list(raw_by_env), runner=_paths.env_aware(lambda a: copy.deepcopy(raw_by_env[a[a.index("--environment") + 1]]), list(raw_by_env)))
 
 
 class RecordedFlagGetTest(unittest.TestCase):

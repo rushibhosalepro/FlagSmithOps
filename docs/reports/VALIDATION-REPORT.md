@@ -133,3 +133,19 @@ What this shows, and what it does not:
 Recommendation: submit on completeness and safety, which the evidence supports. Present the benchmark as measured CLI bytes with its limits. Do the two P0 items before recording the demo.
 
 Disposable resources created: two private GitHub repos (`flagsmithops-demo-shop`, `flagsmithops-demo-shop-2`), three test flags and one permanent tag in the test project. They can be deleted when no longer needed.
+
+## Addendum: environment-completeness gate (P0)
+
+Root cause: environment coverage was self-reported. The agent typed `--known-envs`, so listing only the environments it captured produced `environments_complete: true`. `verdict.py` required that field to be true, but took it from the hand-built candidate, not from the snapshot. `snapshot.py verify` re-read only the environments already in the snapshot and never checked that the snapshot was complete. As a result, an omitted, new or renamed environment could reach PROCEED and pass the archive gate. All four paths were reproduced before the fix.
+
+Fix:
+- `capture` reads `environment list` itself and stores ids and names (never keys). `--known-envs` can only lower coverage. With no `--env` it captures every environment. An unreadable state makes coverage incomplete.
+- `verdict` requires `snapshot` and loads it. Coverage must be true, and the candidate's environments, completeness and overrides must match it exactly.
+- `verify` fails on an incomplete snapshot, a snapshot with no environment list, an unreadable current list, or an environment added, removed or renamed (by id) since the snapshot. An unreadable snapshot file now exits 2 instead of crashing.
+
+| Check | Status |
+|---|---|
+| 24 regression tests (omitted, unknown list, added, removed, renamed, missing state, incomplete snapshot then verify, snapshot link, unreadable file) | VERIFIED. 21 of the first 22 fail against the previous code |
+| Live, read-only: full capture is complete, Production-only capture is incomplete, verify matches the full one and blocks the partial one | VERIFIED |
+| Live: an environment added or renamed in Flagsmith | NOT TESTED (needs creating or renaming an environment). Covered by unit tests with the observed `environment list` shape |
+| Kiro runs with the new gate | NOT TESTED |

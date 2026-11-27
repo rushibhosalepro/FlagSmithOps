@@ -30,7 +30,9 @@ CLEAN = {
     "has_overrides": False,
     "references": {"sdk_calls": 2, "other_literals": 0, "dynamic_call_sites": 0, "unsearched_languages": []},
     "user": {"kept_behavior": "on", "other_usage": "none"},
+    "snapshot": _paths.make_snapshot(),
 }
+UNKNOWN_OVERRIDES_SNAPSHOT = _paths.make_snapshot(overrides=None)
 
 
 def make(**changes):
@@ -68,7 +70,7 @@ def _is_legitimate(path, original, value):
     if path == ("references", "sdk_calls"):
         return isinstance(value, int) and not isinstance(value, bool) and value >= 0   # any real count is valid
     if path == ("flag",):
-        return isinstance(value, str) and bool(value.strip())
+        return False                            # any other name no longer matches the linked snapshot
     if path == ("tags",):
         return value == []                      # no tags at all is a known state
     return False
@@ -120,7 +122,7 @@ class MutationTest(unittest.TestCase):
                 self.assertIn("usage outside the searched repositories not confirmed", r["unverified"], value)
 
     def test_the_legitimate_exemptions_really_do_proceed(self):
-        for path, value in ((("flag",), "some_other_name"), (("tags",), []), (("references", "unsearched_languages"), []),
+        for path, value in ((("tags",), []), (("references", "unsearched_languages"), []),
                             (("references", "other_literals"), 0), (("user", "other_usage"), "none")):
             c, _ = self.mutate(path, value)
             self.assertEqual(verdict.decide(c)["verdict"], "PROCEED", path)
@@ -138,7 +140,7 @@ class StrictBooleanTest(unittest.TestCase):
         for bad in ("true", "yes", 1, "false", [], {}):
             r = make(has_overrides=None, user={"kept_behavior": "on", "other_usage": "none", "accept_unchecked_overrides": bad})
             self.assertEqual(r["verdict"], "APPROVAL REQUIRED", bad)
-        r = make(has_overrides=None, user={"kept_behavior": "on", "other_usage": "none", "accept_unchecked_overrides": True})
+        r = make(has_overrides=None, user={"kept_behavior": "on", "other_usage": "none", "accept_unchecked_overrides": True}, snapshot=UNKNOWN_OVERRIDES_SNAPSHOT)
         self.assertEqual(r["verdict"], "PROCEED")
         self.assertIn("segment and identity overrides not checked", r["unverified"])
 
@@ -191,20 +193,25 @@ class MultivariateTest(unittest.TestCase):
 
 
 class EnvironmentCoverageTest(unittest.TestCase):
+    PROJECT = ["a", "b", "c"]
+
     def runner(self, args):
+        if list(args[:2]) == ["environment", "list"]:
+            return _paths.project_list(self.PROJECT)
         return {"enabled": True, "type": "standard", "segment_overrides": 0, "identity_overrides": 0}
 
     def test_complete_only_when_the_project_list_was_checked_and_nothing_is_missing(self):
-        s = snapshot.capture("f", ["a", "b"], runner=self.runner, known_envs=["a", "b"])
+        s = snapshot.capture("f", ["a", "b", "c"], runner=self.runner)
         self.assertIs(s["environments_complete"], True)
+        self.assertIs(snapshot.capture("f", None, runner=self.runner)["environments_complete"], True)
 
     def test_missing_environment_makes_it_incomplete(self):
-        s = snapshot.capture("f", ["a"], runner=self.runner, known_envs=["a", "b", "c"])
+        s = snapshot.capture("f", ["a"], runner=self.runner)
         self.assertIs(s["environments_complete"], False)
         self.assertEqual(s["not_captured"], ["b", "c"])
 
     def test_unchecked_environment_list_is_unknown_not_complete(self):
-        s = snapshot.capture("f", ["a", "b"], runner=self.runner)
+        s = snapshot.capture("f", ["a", "b"], runner=lambda a: {"enabled": True} if a[0] != "environment" else "not a list")
         self.assertIsNone(s["environments_complete"])
 
     def test_verdict_blocks_proceed_for_unknown_or_incomplete_coverage(self):

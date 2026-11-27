@@ -20,7 +20,9 @@ BASE = {
     "has_overrides": False,
     "references": {"sdk_calls": 2, "other_literals": 0, "dynamic_call_sites": 0, "unsearched_languages": []},
     "user": {"kept_behavior": "on", "other_usage": "none"},
+    "snapshot": _paths.make_snapshot(),
 }
+UNKNOWN_OVERRIDES_SNAPSHOT = _paths.make_snapshot(overrides=None)
 
 
 def make(**changes):
@@ -100,7 +102,7 @@ class VerdictTest(unittest.TestCase):
         self.assertTrue(any("overrides checked" in g for g in r["archive_gate"]))
 
     def test_unknown_overrides_explicitly_accepted_can_proceed_but_stay_unverified(self):
-        r = make(has_overrides=None, user={"accept_unchecked_overrides": True})
+        r = make(has_overrides=None, user={"accept_unchecked_overrides": True}, snapshot=UNKNOWN_OVERRIDES_SNAPSHOT)
         self.assertEqual(r["verdict"], "PROCEED")
         self.assertIn("segment and identity overrides not checked", r["unverified"])
         self.assertTrue(any("overrides checked" in g for g in r["archive_gate"]))

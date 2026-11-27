@@ -17,9 +17,13 @@ def out(name):
     return _paths.load_json("cli_outputs", name)
 
 
-def runner_from(table):
+def runner_from(table, project=None):
     """table maps (flag env) -> fixture name or Exception. Segment reads raise unless listed under (env, segment)."""
+    names = project if project is not None else sorted({k if isinstance(k, str) else k[0] for k in table})
+
     def run(args):
+        if list(args[:2]) == ["environment", "list"]:
+            return _paths.project_list(names)
         env = args[args.index("--environment") + 1]
         key = (env, args[args.index("--segment") + 1]) if "--segment" in args else env
         value = table[key]
@@ -38,14 +42,19 @@ class CaptureTest(unittest.TestCase):
         self.assertIs(snap["environments"]["staging"]["default"]["enabled"], False)
 
     def test_environments_left_out_are_reported_not_silently_skipped(self):
-        snap = snapshot.capture("f", ["production"], runner=runner_from({"production": "flag_get_enabled.json"}),
-                                known_envs=["production", "staging", "dev"])
+        snap = snapshot.capture("f", ["production"], runner=runner_from({"production": "flag_get_enabled.json"}, project=["dev", "production", "staging"]))
         self.assertEqual(snap["not_captured"], ["dev", "staging"])
-        self.assertTrue(any("NOT captured: dev, staging" in n for n in snap["notes"]))
+        self.assertIs(snap["environments_complete"], False)
+        self.assertTrue(any("not captured: dev, staging" in n for n in snap["notes"]))
 
-    def test_without_a_known_environment_list_the_gap_is_noted(self):
-        snap = snapshot.capture("f", ["production"], runner=runner_from({"production": "flag_get_enabled.json"}))
-        self.assertTrue(any("full environment list was not checked" in n for n in snap["notes"]))
+    def test_without_a_readable_environment_list_coverage_is_unknown(self):
+        def run(args):
+            if list(args[:2]) == ["environment", "list"]:
+                raise cli.CliError("exit 1: forbidden")
+            return out("flag_get_enabled.json")
+        snap = snapshot.capture("f", ["production"], runner=run)
+        self.assertIsNone(snap["environments_complete"])
+        self.assertTrue(any("environment list could not be read" in n for n in snap["notes"]))
 
     def test_overrides_not_captured_is_explicit(self):
         snap = snapshot.capture("f", ["production"], runner=runner_from({"production": "flag_get_enabled.json"}))
@@ -194,9 +203,9 @@ class VerifyTest(unittest.TestCase):
         path = os.path.join(tempfile.mkdtemp(), "snap.json")
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(self.saved(), handle)
-        with mock.patch.object(snapshot.cli, "run", return_value=out("flag_get_enabled.json")):
+        with mock.patch.object(snapshot.cli, "run", side_effect=runner_from({"production": "flag_get_enabled.json"})):
             self.assertEqual(snapshot.main(["verify", "--file", path]), 0)
-        with mock.patch.object(snapshot.cli, "run", return_value=out("flag_get_disabled.json")):
+        with mock.patch.object(snapshot.cli, "run", side_effect=runner_from({"production": "flag_get_disabled.json"})):
             self.assertEqual(snapshot.main(["verify", "--file", path]), 1)
         with mock.patch.object(snapshot.cli, "run", side_effect=cli.CliError("exit 1: boom")):
             self.assertEqual(snapshot.main(["verify", "--file", path]), 2)

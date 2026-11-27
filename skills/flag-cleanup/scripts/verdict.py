@@ -18,6 +18,8 @@ Fields:
   production_environment    str
   environments_complete     bool           (snapshot.py: true only if every environment of the project was captured)
   environments_not_captured list           (names, optional, for the message)
+  snapshot                  str            path to this flag's snapshot.py file (REQUIRED to PROCEED). Environment
+                                           coverage, enabled state and has_overrides must match it exactly.
   has_overrides             bool or null
   references                {sdk_calls: int, other_literals: int, dynamic_call_sites: int, unsearched_languages: list}
   user                      {kept_behavior: "on"|"off"|<variant>|null, other_usage: "none"|"unknown"|"in_use",
@@ -69,6 +71,45 @@ def _tag_status(tags):
         else:
             unknown = True
     return permanent, unknown
+
+
+def _load_snapshot(path):
+    if not isinstance(path, str) or not path.strip():
+        return None, "no snapshot linked (set 'snapshot' to the snapshot.py file for this flag)"
+    try:
+        data = json.loads(read_text(path))
+    except (OSError, ValueError) as err:
+        return None, "snapshot missing or unreadable: %s (%s)" % (path, err.__class__.__name__)
+    if not isinstance(data, dict):
+        return None, "snapshot has an unexpected shape: %s" % path
+    return data, None
+
+
+def snapshot_problems(c):
+    """Check the candidate against the snapshot it names. Environment facts must come from the snapshot,
+    so a hand-built candidate cannot claim coverage or state the snapshot did not record."""
+    snap, error = _load_snapshot(c.get("snapshot"))
+    if error:
+        return [error]
+    problems = []
+    if snap.get("flag") != c.get("flag"):
+        problems.append("snapshot is for a different flag (%r)" % snap.get("flag"))
+    if snap.get("environments_complete") is not True:
+        detail = "; ".join(str(p) for p in snap.get("coverage_problems") or []) or "coverage unknown"
+        problems.append("snapshot does not cover every environment: " + detail)
+    if not isinstance(snap.get("project_environments"), list) or not snap.get("project_environments"):
+        problems.append("snapshot has no project environment list")
+    summary = _dict(snap.get("summary"))
+    recorded = {env: _bool(_dict(s).get("enabled")) for env, s in summary.items()}
+    claimed = {env: _bool(_dict(v).get("enabled")) for env, v in _dict(c.get("environments")).items()}
+    if recorded != claimed:
+        problems.append("candidate environments do not match the snapshot (snapshot: %s)"
+                        % ", ".join("%s=%s" % (k, "unknown" if v is None else ("on" if v else "off")) for k, v in sorted(recorded.items())))
+    if _bool(snap.get("environments_complete")) != _bool(c.get("environments_complete")):
+        problems.append("environments_complete does not match the snapshot")
+    if snap.get("has_overrides") is not c.get("has_overrides"):
+        problems.append("has_overrides does not match the snapshot (snapshot: %r)" % snap.get("has_overrides"))
+    return problems
 
 
 def decide(c):
@@ -133,6 +174,7 @@ def decide(c):
         detail = (": " + ", ".join(str(m) for m in missing)) if isinstance(missing, list) and missing else ""
         approval.append(("not every environment was read" + detail) if complete is False
                         else "environment coverage not established (the project's environment list was not checked)")
+    approval.extend(snapshot_problems(c))
 
     mv = _bool(c.get("multivariate"))
     envs = _dict(c.get("environments"))
