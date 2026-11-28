@@ -130,6 +130,36 @@ Update with `npx skills update`, and remove with `npx skills remove`. The `skill
 
 Start a new agent session. Most agents list skills when you type `/`. Look for `flag-cleanup` and `flag-incident-response`.
 
+## Why these skills exist
+
+Feature flags make releases safer. They also create two jobs that teams put off or rush: removing flags once they are done, and switching one off fast when it breaks production. Coding agents can do both, but without guidance they guess. These skills fix three failure modes.
+
+### #1: Flags never get removed
+
+> "Feature flags are meant to be temporary. When a rollout is complete or an experiment has ended, the flag should be removed from your code and from Flagsmith."
+>
+> [Flagsmith docs, Stale Flag Detection](https://docs.flagsmith.com/managing-flags/stale-flags)
+
+**The problem.** Everyone plans to remove flags, and few do. A 2021 study found that 77% of developers intend to remove toggles once a system stabilises. When the codebases were audited, 75% of toggle components were still present up to 49 weeks after they were introduced ([quoted by GrowthBook](https://www.growthbook.io/blog/engineering-guide-feature-flag-technical-debt)). Cleanup is slow because it is several jobs at once: find every reference, decide which code path to keep, open a PR, and only archive the flag once the change has shipped.
+
+**The fix** is [`flag-cleanup`](skills/flag-cleanup/SKILL.md). It does the whole job, from discovery to the post-merge archive, and it refuses the flags it should not touch: permanent-tagged flags, flags with references it cannot account for, and flags whose state in any environment is unknown. It also blocks archiving before the PR merges.
+
+### #2: An incident needs the flag off now, safely
+
+> "...in 2012, a poorly managed feature flag cost the financial firm Knight Capital $440M in a span of about 45 minutes."
+>
+> [OpenFeature blog](https://openfeature.dev/blog/feature-flags-with-great-power-comes-great-responsibility/)
+
+**The problem.** When a flagged feature breaks production, the kill switch is right there, and that is the risk. Under pressure it is easy to switch off the wrong flag, change the wrong environment, or forget what the state was before. A user override can also keep the broken feature on for some people after the "fix".
+
+**The fix** is [`flag-incident-response`](skills/flag-incident-response/SKILL.md). It finds the flag with evidence and asks you to confirm it. It snapshots every environment, then disables one flag in one environment, only after your yes and only through a pre-write gate. Afterwards it checks real identities and reports PARTIAL if an override still serves the feature. Restore is one command, taken from the snapshot.
+
+### #3: Agents guess when they lack context
+
+**The problem.** In our baseline run, a general coding agent was given the same cleanup task without these skills. It said that archiving a flag hides it from SDKs, which we verified is false: archived flags keep evaluating. It never read the flags' tags. It also printed the Production environment key in its message to the user. Nothing it did was malicious. It simply filled the gaps with guesses (see [`VALIDATION-REPORT.md`](docs/reports/VALIDATION-REPORT.md), section 5).
+
+**The fix** is to give the agent facts and gates instead of freedom. Both skills read the real CLI output, treat missing information as a reason to stop and ask, keep keys out of their output, and write an evidence report for every run. In 9 fresh agent sessions, including ones that asked the agent to delete a flag, skip the gate, or archive before the merge, there were no writes without approval, no deletes and no direct CLI calls (see [the transcripts](docs/reports/kiro-final/TRANSCRIPTS.md)).
+
 ## Use
 
 Say what you want in plain language. The skill asks for what it needs: the project, the environments, which one is production, and which repositories to search.
