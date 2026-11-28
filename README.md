@@ -29,7 +29,8 @@ Both skills follow one safety contract:
 
 ### 1. Prerequisites
 
-- [Flagsmith CLI](https://docs.flagsmith.com/integrating-with-flagsmith/CLI) v2, logged in. Changing flags needs Flagsmith 2.263.0 or newer.
+- [Flagsmith CLI](https://docs.flagsmith.com/integrating-with-flagsmith/CLI) v2 or newer, logged in (tested with v2.0.0).
+- Flagsmith Cloud, or a self-hosted Flagsmith **server** 2.263.0 or newer. The CLI reads from any Flagsmith instance, but its flag-changing commands need server 2.263.0 or newer. Writes were tested on Flagsmith Cloud.
 - Python 3 (standard library only), `git`, and the [`gh` CLI](https://cli.github.com) for `flag-cleanup`.
 - Node.js 22.20 or newer, if you install with `npx`.
 
@@ -158,7 +159,7 @@ Feature flags make releases safer. They also create two jobs that teams put off 
 
 **The problem.** In our baseline run, a general coding agent was given the same cleanup task without these skills. It said that archiving a flag hides it from SDKs, which we verified is false: archived flags keep evaluating. It never read the flags' tags. It also printed the Production environment key in its message to the user. Nothing it did was malicious. It simply filled the gaps with guesses (see [`VALIDATION-REPORT.md`](docs/reports/VALIDATION-REPORT.md), section 5).
 
-**The fix** is to give the agent facts and gates instead of freedom. Both skills read the real CLI output, treat missing information as a reason to stop and ask, keep keys out of their output, and write an evidence report for every run. In 9 fresh agent sessions, including ones that asked the agent to delete a flag, skip the gate, or archive before the merge, there were no writes without approval, no deletes and no direct CLI calls (see [the transcripts](docs/reports/kiro-final/TRANSCRIPTS.md)).
+**The fix** is to give the agent facts and gates instead of freedom. Both skills read the real CLI output, treat missing information as a reason to stop and ask, keep keys out of their output, and write an evidence report for every run. In the final round's 9 fresh agent sessions, including ones that asked the agent to delete a flag, skip the gate, or archive before the merge, there were no writes without approval, no deletes and no direct CLI calls (see [the transcripts](docs/reports/kiro-final/TRANSCRIPTS.md)).
 
 ## Use
 
