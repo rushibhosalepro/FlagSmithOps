@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="FlagSmithOps: Agent Skills for safe Flagsmith flag cleanup and incident response">
+  <title>FlagSmithOps</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="320" rx="24" fill="url(#bg)"/>
+  <g opacity="0.08" stroke="#ffffff" stroke-width="1">
+    <path d="M0 80H1280M0 160H1280M0 240H1280M160 0V320M320 0V320M480 0V320M640 0V320M800 0V320M960 0V320M1120 0V320"/>
+  </g>
+
+  <!-- toggles: off, on -->
+  <g transform="translate(96 92)">
+    <rect width="120" height="56" rx="28" fill="#334155"/>
+    <circle cx="28" cy="28" r="20" fill="#94a3b8"/>
+  </g>
+  <g transform="translate(96 172)">
+    <rect width="120" height="56" rx="28" fill="url(#accent)"/>
+    <circle cx="92" cy="28" r="20" fill="#ffffff"/>
+  </g>
+
+  <text x="272" y="150" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="76" font-weight="700" fill="#ffffff">Flag<tspan fill="url(#accent)">Smith</tspan>Ops</text>
+  <text x="276" y="200" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" fill="#cbd5e1">Agent Skills for safe Flagsmith flag cleanup and incident response</text>
+
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" fill="#e2e8f0">
+    <rect x="276" y="230" width="196" height="40" rx="20" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.18"/>
+    <text x="374" y="256" text-anchor="middle">approval per write</text>
+    <rect x="488" y="230" width="196" height="40" rx="20" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.18"/>
+    <text x="586" y="256" text-anchor="middle">archive, never delete</text>
+    <rect x="700" y="230" width="196" height="40" rx="20" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.18"/>
+    <text x="798" y="256" text-anchor="middle">snapshot + restore</text>
+    <rect x="912" y="230" width="196" height="40" rx="20" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.18"/>
+    <text x="1010" y="256" text-anchor="middle">evidence every run</text>
+  </g>
+</svg>

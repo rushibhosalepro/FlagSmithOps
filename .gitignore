@@ -3,3 +3,5 @@ flagsmith.env
 .env
 __pycache__/
 *.pyc
+demo-video/node_modules/
+demo-video/out/
